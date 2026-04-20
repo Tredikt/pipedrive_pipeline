@@ -14,7 +14,5 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    environment:
-      # опционально: WEBHOOK_SECRET=длинная_случайная_строка
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+    # WEBHOOK_SECRET и остальное — из .env (не дублируем через environment: ${...}, иначе ошибка interpolation)
     restart: unless-stopped
