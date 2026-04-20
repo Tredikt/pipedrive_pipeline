@@ -1,0 +1,20 @@
+# Пример: webhook-сервис на VPS рядом с доступом к той же PostgreSQL.
+# Подставьте URL в Pipedrive: https://YOUR_DOMAIN/webhook (порт контейнера 8000)
+#
+# docker compose -f docker-compose.webhook.yml up -d --build
+#
+# env-файл не коммитьте; скопируйте из .env на сервере.
+
+services:
+  pipedrive-webhook:
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # опционально: WEBHOOK_SECRET=длинная_случайная_строка
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+    restart: unless-stopped

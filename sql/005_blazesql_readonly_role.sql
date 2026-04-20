@@ -1,0 +1,13 @@
+-- Шаблон: отдельный пользователь только на чтение для BI (BlazeSQL).
+-- Замените имя БД, пароль, имя роли. Выполните от суперпользователя.
+--
+-- CREATE ROLE blazesql_ro WITH LOGIN PASSWORD 'CHANGE_ME_STRONG_PASSWORD';
+-- ALTER ROLE blazesql_ro IN DATABASE pipedrive SET search_path TO pipedrive_dm, pipedrive_raw, public;
+-- GRANT CONNECT ON DATABASE pipedrive TO blazesql_ro;
+-- GRANT USAGE ON SCHEMA pipedrive_dm, pipedrive_raw TO blazesql_ro;
+-- GRANT SELECT ON ALL TABLES IN SCHEMA pipedrive_dm, pipedrive_raw TO blazesql_ro;
+-- GRANT SELECT ON ALL SEQUENCES IN SCHEMA pipedrive_dm, pipedrive_raw TO blazesql_ro;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA pipedrive_dm GRANT SELECT ON TABLES TO blazesql_ro;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA pipedrive_raw GRANT SELECT ON TABLES TO blazesql_ro;
+--
+-- Раскомментируйте и отредактируйте под вашу среду.

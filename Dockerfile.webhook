@@ -1,0 +1,14 @@
+# Сервис приёма webhooks (отдельно от cron-синка)
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+
+COPY requirements.txt requirements-webhook.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-webhook.txt
+
+COPY src/ ./src/
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8000
+
+CMD ["uvicorn", "src.webhook_app:app", "--host", "0.0.0.0", "--port", "8000"]

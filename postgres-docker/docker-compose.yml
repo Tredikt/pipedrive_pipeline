@@ -1,0 +1,27 @@
+# Переносите всю папку `postgres-docker` куда угодно — она самодостаточна.
+# Запуск: cd postgres-docker && docker compose up -d
+# Строка для приложения (корень `.env`): postgresql://USER:PASS@127.0.0.1:PORT/DB
+
+name: pipedrive-pg
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pipedrive_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pipedrive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipedrive}
+      POSTGRES_DB: ${POSTGRES_DB:-pipedrive}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pipedrive_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pipedrive_pgdata:
