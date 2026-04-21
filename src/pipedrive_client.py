@@ -46,6 +46,18 @@ class PipedriveClient:
             r.raise_for_status()
             return r.json()
 
+    def delete_item(self, path: str) -> dict[str, Any]:
+        """DELETE (например DELETE /v1/deals/123). api_token в query."""
+        p = path if path.startswith("/") else f"/{path}"
+        url = f"{self._base}{p}"
+        params = {"api_token": self._token}
+        with httpx.Client(timeout=self._timeout) as client:
+            r = client.delete(url, params=params)
+            r.raise_for_status()
+            if r.content:
+                return r.json()
+            return {"success": True}
+
     def iter_collection(
         self,
         path: str,

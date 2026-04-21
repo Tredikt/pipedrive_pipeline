@@ -20,7 +20,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from src.config import get_settings
 from src.db import connect
 from src.pipedrive_client import PipedriveClient
-from src.sync import sync_one_entity_by_id
+from src.sync import sync_one_entity_webhook
 from src.webhook_delete import delete_entity_from_db
 from src.webhook_parse import is_delete_action, is_upsert_action, parse_webhook_event
 
@@ -109,7 +109,9 @@ async def receive_webhook(
     if is_upsert_action(action):
         try:
             with connect(settings.database_url) as conn:
-                ok = sync_one_entity_by_id(client, conn, spec_name, entity_id)
+                ok = sync_one_entity_webhook(
+                    client, conn, spec_name, entity_id, webhook_body=body
+                )
                 conn.commit()
         except Exception:
             logger.exception(

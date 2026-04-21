@@ -37,6 +37,27 @@ def parse_webhook_event(body: dict[str, Any]) -> tuple[str, str, str] | None:
     return None
 
 
+def row_from_webhook_body(body: dict[str, Any], entity_id: str) -> dict[str, Any] | None:
+    """
+    Webhooks v2: в теле есть meta + data (текущее состояние объекта).
+    Если data совпадает с entity_id — приводим к форме, близкой к GET /v1/.../{id},
+    чтобы не делать повторный GET (например при 403 у токена на сервере).
+
+    См. https://pipedrive.readme.io/docs/guide-for-webhooks-v2
+    """
+    data = body.get("data")
+    if not isinstance(data, dict):
+        return None
+    if str(data.get("id")) != str(entity_id):
+        return None
+    out = dict(data)
+    # v2: кастомные поля могут быть в custom_fields — плоский hash, как в API
+    cf = out.pop("custom_fields", None)
+    if isinstance(cf, dict):
+        out.update(cf)
+    return out
+
+
 def is_delete_action(action: str) -> bool:
     a = action.lower()
     return a in ("delete", "deleted", "remove", "removed")

@@ -14,7 +14,9 @@
    (создание и правка — два события; при необходимости WEBHOOK_LOG_BODY=1 в .env контейнера).
 4) Дополнительно: Pipedrive — Settings — Webhooks — журнал доставки по subscription_url.
 
-Удалить тестовую сделку можно вручную в воронке.
+Удалить сделку по API (тот же токен, что и при создании):
+
+  python scripts/pipedrive_create_update_deal.py --delete-id 7321
 """
 from __future__ import annotations
 
@@ -45,6 +47,13 @@ def main() -> None:
         default="pipedrive_pipeline local",
         help="Префикс названия сделки",
     )
+    p.add_argument(
+        "--delete-id",
+        type=int,
+        default=None,
+        metavar="ID",
+        help="Удалить сделку DELETE /v1/deals/{id} и выйти (без POST/PUT)",
+    )
     args = p.parse_args()
 
     settings = get_settings()
@@ -52,6 +61,17 @@ def main() -> None:
         base_url=settings.pipedrive_api_base_url,
         api_token=settings.pipedrive_api_token,
     )
+
+    if args.delete_id is not None:
+        path = f"{DEALS_PATH.rstrip('/')}/{args.delete_id}"
+        print("DELETE", path, flush=True)
+        resp = client.delete_item(path)
+        if not resp.get("success", True):
+            print("API error:", resp, flush=True)
+            raise SystemExit(1)
+        print("OK. Deleted deal id=", args.delete_id, flush=True)
+        print("Webhook: expect delete event for spec=deals id=", args.delete_id, flush=True)
+        return
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     title_create = f"{args.prefix} [{ts}]"

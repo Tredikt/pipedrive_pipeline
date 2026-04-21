@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -27,6 +28,7 @@ from src.dm_reference import (
 from src.dm_upsert import upsert_deal_dm, upsert_organization_dm, upsert_person_dm
 from src.entities import ENTITY_SPECS, EntitySpec
 from src.pipedrive_client import PipedriveClient
+from src.webhook_parse import row_from_webhook_body
 from src.transform import (
     build_field_key_to_label,
     extract_custom_resolved,
@@ -34,6 +36,7 @@ from src.transform import (
     standard_skip_keys,
 )
 
+logger = logging.getLogger(__name__)
 
 PARENT_ENTITY_FOR_FIELD_SPEC: dict[str, str] = {
     "deal_fields": "deals",
@@ -287,9 +290,19 @@ def sync_one_entity_by_id(
     spec_name: str,
     entity_id: str,
 ) -> bool:
+    """GET /v1/{entity}/{id} и запись в БД (без тела webhook)."""
+    return sync_one_entity_webhook(client, conn, spec_name, entity_id, webhook_body=None)
+
+
+def sync_one_entity_webhook(
+    client: PipedriveClient,
+    conn: Any,
+    spec_name: str,
+    entity_id: str,
+    webhook_body: dict[str, Any] | None,
+) -> bool:
     """
-    Перезагрузить одну сущность по id (GET /v1/{entity}/{id}) и записать в БД.
-    Для webhooks: key_to_label только из БД (resolve_key_to_label_webhook).
+    Одна сущность в БД: сначала строка из тела webhook v2 (data), иначе GET по id.
     """
     spec = next((s for s in ENTITY_SPECS if s.name == spec_name), None)
     if spec is None:
@@ -298,7 +311,18 @@ def sync_one_entity_by_id(
     if parent:
         return False
     key_to_label = resolve_key_to_label_webhook(conn, spec)
-    row = client.get_item(spec.list_path, entity_id)
+
+    row: dict[str, Any] | None = None
+    if webhook_body:
+        row = row_from_webhook_body(webhook_body, entity_id)
+        if row is not None:
+            logger.info(
+                "Webhook upsert from payload (skip API GET) spec=%s id=%s",
+                spec_name,
+                entity_id,
+            )
+    if row is None:
+        row = client.get_item(spec.list_path, entity_id)
     if row is None:
         return False
     store_entity_row(conn, spec, row, key_to_label=key_to_label, parent=parent)
