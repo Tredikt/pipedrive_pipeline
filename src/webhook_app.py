@@ -7,6 +7,10 @@ HTTP-приёмник webhooks Pipedrive → PostgreSQL.
 
 Переменные: как у синка (DATABASE_URL, PIPEDRIVE_API_TOKEN, PIPEDRIVE_COMPANY_DOMAIN),
 опционально WEBHOOK_SECRET — тогда заголовок Authorization: Bearer <WEBHOOK_SECRET>.
+Проверка аккаунта Pipedrive: meta.host в теле webhook v2 должен совпадать с доменом из
+PIPEDRIVE_COMPANY_DOMAIN или WEBHOOK_EXPECTED_HOST (иначе 403). Опционально WEBHOOK_ALLOWED_IPS.
+
+Логи приложения: handlers в startup, LOG_LEVEL.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
@@ -23,6 +28,12 @@ from src.pipedrive_client import PipedriveClient
 from src.sync import sync_one_entity_webhook
 from src.webhook_delete import delete_entity_from_db
 from src.webhook_parse import is_delete_action, is_upsert_action, parse_webhook_event
+from src.webhook_client import (
+    expected_pipedrive_meta_hostname,
+    parse_ip_allowlist,
+    webhook_client_host,
+    webhook_meta_host_matches_company,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +44,15 @@ app = FastAPI(title="Pipedrive → PostgreSQL webhooks", version="1.0.0")
 def _configure_logging() -> None:
     lvl = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
     level = getattr(logging, lvl, logging.INFO)
-    logging.getLogger("src.webhook_app").setLevel(level)
+    fmt = logging.Formatter("%(levelname)s %(name)s: %(message)s")
+    for name in ("src.webhook_app", "src.sync", "src.pipedrive_client"):
+        lg = logging.getLogger(name)
+        lg.setLevel(level)
+        if not lg.handlers:
+            h = logging.StreamHandler(sys.stderr)
+            h.setFormatter(fmt)
+            lg.addHandler(h)
+        lg.propagate = False
 
 
 @app.get("/health")
@@ -52,6 +71,13 @@ async def receive_webhook(
         if (authorization or "").strip() != expected:
             raise HTTPException(status_code=401, detail="Unauthorized")
 
+    allow = parse_ip_allowlist(os.environ.get("WEBHOOK_ALLOWED_IPS", ""))
+    if allow:
+        host = webhook_client_host(request)
+        if host not in allow:
+            logger.warning("Webhook rejected client_host=%s not in allowed list", host)
+            raise HTTPException(status_code=403, detail="Forbidden")
+
     try:
         body = await request.json()
     except Exception:
@@ -59,6 +85,21 @@ async def receive_webhook(
 
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Body must be JSON object")
+
+    if os.environ.get("WEBHOOK_DISABLE_META_HOST_CHECK", "").strip() not in (
+        "1",
+        "true",
+        "yes",
+    ):
+        if not webhook_meta_host_matches_company(body):
+            exp = expected_pipedrive_meta_hostname()
+            _meta = body.get("meta") if isinstance(body.get("meta"), dict) else {}
+            logger.warning(
+                "Webhook rejected: meta.host mismatch or missing (expected=%s got_host=%r)",
+                exp,
+                _meta.get("host"),
+            )
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     if os.environ.get("WEBHOOK_LOG_BODY", "").strip() in ("1", "true", "yes"):
         try:
