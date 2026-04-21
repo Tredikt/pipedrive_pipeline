@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterator
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class PipedriveClient:
@@ -54,7 +57,17 @@ class PipedriveClient:
         try:
             body = self.get_json(url_path)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            code = e.response.status_code
+            if code == 404:
+                return None
+            # Нет доступа к объекту или неверный id — для webhooks не даём 500, только «нет строки».
+            if code in (400, 401, 403):
+                logger.warning(
+                    "get_item HTTP %s path=%s id=%s",
+                    code,
+                    url_path,
+                    item_id,
+                )
                 return None
             raise
         if not body.get("success", True):
