@@ -79,7 +79,10 @@ def main() -> None:
     except Exception:
         print(r.text[:500])
 
-    print("Готово. Проверьте в Pipedrive: Настройки → Webhooks — статусы доставки.")
+    print(
+        "Done. In Pipedrive: Settings - Webhooks - delivery status.",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":
