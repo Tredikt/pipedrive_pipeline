@@ -57,7 +57,7 @@ python -m src.sync --only deals
 
 **Полнота строк:** для списков сущностей используется пагинация `start` / `limit` до исчерпания `more_items_in_collection` (`PipedriveClient.iter_collection`). Для **всех** определений кастомных полей (*Fields) пагинация такая же — см. `_load_field_rows` в `src/sync.py` (не одна страница).
 
-**Webhooks (обновления почти в реальном времени):** HTTP‑приёмник `POST /webhook` в `src/webhook_app.py` (uvicorn, порт **8000**). Зависимости: `pip install -r requirements-webhook.txt`. Деплой: `docker compose -f docker-compose.webhook.yml up -d --build` (те же переменные, что у синка, плюс опционально `WEBHOOK_SECRET`, `WEBHOOK_PUBLIC_URL` для `scripts/register_pipedrive_webhooks.py`). Полный снимок данных по-прежнему даёт запуск `python -m src.sync`.
+**Webhooks (обновления почти в реальном времени):** HTTP‑приёмник `POST /webhook` в `src/webhook_app.py` (uvicorn, порт **8000**). Зависимости: `pip install -r requirements-webhook.txt`. Деплой: `docker compose -f docker-compose.webhook.yml up -d --build` (те же переменные, что у синка, плюс опционально `WEBHOOK_SECRET`, `WEBHOOK_PUBLIC_URL` для `scripts/register_pipedrive_webhooks.py`). Полный снимок данных по-прежнему даёт запуск `python -m src.sync`. Проверка цепочки «POST/PUT в Pipedrive → событие на webhook»: на сервере `docker compose -f docker-compose.webhook.yml logs -f`, локально `python scripts/pipedrive_create_update_deal.py` (создаёт сделку и правит её; в логах — два вызова `/webhook`; см. docstring скрипта).
 
 **Примеры SQL под BI (ТЗ §2.2):** [sql/bi_example_queries.sql](sql/bi_example_queries.sql).
 

@@ -26,6 +26,26 @@ class PipedriveClient:
             r.raise_for_status()
             return r.json()
 
+    def post_json(self, path: str, *, json_body: dict[str, Any]) -> dict[str, Any]:
+        """POST JSON (например POST /v1/deals). api_token в query."""
+        p = path if path.startswith("/") else f"/{path}"
+        url = f"{self._base}{p}"
+        params = {"api_token": self._token}
+        with httpx.Client(timeout=self._timeout) as client:
+            r = client.post(url, params=params, json=json_body)
+            r.raise_for_status()
+            return r.json()
+
+    def put_json(self, path: str, *, json_body: dict[str, Any]) -> dict[str, Any]:
+        """PUT JSON (например PUT /v1/deals/123). api_token в query."""
+        p = path if path.startswith("/") else f"/{path}"
+        url = f"{self._base}{p}"
+        params = {"api_token": self._token}
+        with httpx.Client(timeout=self._timeout) as client:
+            r = client.put(url, params=params, json=json_body)
+            r.raise_for_status()
+            return r.json()
+
     def iter_collection(
         self,
         path: str,
