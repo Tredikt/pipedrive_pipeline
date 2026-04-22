@@ -21,6 +21,26 @@ copy .env.example .env
 
 PostgreSQL в Docker — отдельная папка **`postgres-docker`** (её можно переносить целиком): см. `postgres-docker/README.md`.
 
+## PeopleForce
+
+Интеграция [PeopleForce API v3](https://developer.peopleforce.io/docs/getting-started): витрина **`peopleforce_dm`** (нормализованные таблицы + `payload` JSONB с полным объектом API; список сущностей — `sql/010_peopleforce_dm_extend.sql`) и при необходимости **`peopleforce_raw.entity_record`** (флаги `--raw` / отдельная команда). Аутентификация: **`X-API-KEY`** ([док](https://developer.peopleforce.io/docs/authentication)).
+
+```bash
+# в .env: PEOPLEFORCE_API_KEY, DATABASE_URL
+python -m src.peopleforce.sync --init-db
+python -m src.peopleforce.sync
+python -m src.peopleforce.sync --only employees
+# опционально дублировать ответы API в peopleforce_raw.entity_record
+python -m src.peopleforce.sync --raw
+# только сырой слой (без витрины): peopleforce_raw.entity_record (см. src/peopleforce/bulk_endpoints.py)
+python -m src.peopleforce.sync --all-raw
+# то же: python -m src.peopleforce.bulk_raw
+```
+
+Сырой JSON одного сотрудника из API (сверка полей): `python scripts/dump_peopleforce_employee_sample.py`
+
+**Webhooks** PeopleForce ([настройка](https://developer.peopleforce.io/docs/starting-with-webhooks)): **Settings → Webhooks → Add new webhook**. В **Payload URL** укажите публичный HTTPS-адрес с путём **`/peopleforce/webhook`** (локально: `uvicorn src.webhook_app:app --host 0.0.0.0 --port 8000`, см. `requirements-webhook.txt`). **Secret** из UI положите в **`PEOPLEFORCE_WEBHOOK_SECRET`** (заголовок **`x-peopleforce-signature`**: `sha256=` + HMAC-SHA256 от сырого тела). В **Topics** включите события по сотрудникам: в теле приходит `action` вида **`employee_create`**, **`employee_update`**, **`employee_delete`** (и др. с подстрокой `employee`). Обработчик пишет upsert в `peopleforce_dm.employee` + `peopleforce_raw.entity_record`, при удалении — удаляет строки. Тесты: `python -m pytest tests/test_peopleforce_webhook.py -v`.
+
 ## Инициализация БД и первая загрузка
 
 ```bash

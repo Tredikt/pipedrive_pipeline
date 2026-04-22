@@ -1,5 +1,5 @@
 """
-HTTP-приёмник webhooks Pipedrive → PostgreSQL.
+HTTP-приёмник: Pipedrive POST /webhook, PeopleForce POST /peopleforce/webhook.
 
 Запуск локально:
   pip install -r requirements-webhook.txt
@@ -28,6 +28,7 @@ from src.pipedrive_client import PipedriveClient
 from src.sync import sync_one_entity_webhook
 from src.webhook_delete import delete_entity_from_db
 from src.webhook_parse import is_delete_action, is_upsert_action, parse_webhook_event
+from src.peopleforce import webhook_routes as peopleforce_webhook_routes
 from src.webhook_client import (
     expected_pipedrive_meta_hostname,
     parse_ip_allowlist,
@@ -37,7 +38,15 @@ from src.webhook_client import (
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Pipedrive → PostgreSQL webhooks", version="1.0.0")
+app = FastAPI(
+    title="CRM webhooks (Pipedrive + PeopleForce)",
+    version="1.0.0",
+)
+app.include_router(
+    peopleforce_webhook_routes.router,
+    prefix="/peopleforce",
+    tags=["peopleforce"],
+)
 
 
 @app.on_event("startup")
@@ -45,7 +54,12 @@ def _configure_logging() -> None:
     lvl = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
     level = getattr(logging, lvl, logging.INFO)
     fmt = logging.Formatter("%(levelname)s %(name)s: %(message)s")
-    for name in ("src.webhook_app", "src.sync", "src.pipedrive_client"):
+    for name in (
+        "src.webhook_app",
+        "src.sync",
+        "src.pipedrive_client",
+        "src.peopleforce.webhook_routes",
+    ):
         lg = logging.getLogger(name)
         lg.setLevel(level)
         if not lg.handlers:
