@@ -1,0 +1,342 @@
+{
+  "info": {
+    "_postman_id": "5b4ec52f-9f03-44dd-a1d7-3c6b8be7c1aa",
+    "name": "PeopleForce API CRUD",
+    "description": "CRUD-запросы к PeopleForce Public API v3. Для employee нет hard DELETE, поэтому DELETE показан на salary-сущности сотрудника.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Employees - List (GET /employees)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees?page=1&status=all",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "status",
+              "value": "all"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Employees - Get By ID (GET /employees?ids[]=...)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees?page=1&status=all&ids[]={{employeeId}}",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "status",
+              "value": "all"
+            },
+            {
+              "key": "ids[]",
+              "value": "{{employeeId}}"
+            }
+          ]
+        },
+        "description": "В ответе employee будет в массиве data[]."
+      }
+    },
+    {
+      "name": "Employees - Create (POST /employees)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Postman\",\n  \"last_name\": \"PF\",\n  \"email\": \"postman.{{$timestamp}}@example.invalid\",\n  \"employee_number\": \"PM-{{$timestamp}}\",\n  \"hired_on\": \"{{defaultHiredOn}}\"\n}"
+        },
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Employees - Update (PUT /employees/{employee_id})",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Postman-Updated\",\n  \"hired_on\": \"{{defaultHiredOn}}\"\n}"
+        },
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees/{{employeeId}}",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees",
+            "{{employeeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Employee Salaries - Create (POST /employees/{employee_id}/salaries)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "const id = body?.data?.id ?? body?.id;",
+              "if (id) {",
+              "  pm.collectionVariables.set('salaryId', String(id));",
+              "  console.log('salaryId saved to collection vars:', id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"effective_on\": \"{{defaultSalaryEffectiveOn}}\",\n  \"amount\": 1000,\n  \"per\": \"month\",\n  \"currency_code\": \"USD\",\n  \"comment\": \"Postman salary test\"\n}"
+        },
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees/{{employeeId}}/salaries",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees",
+            "{{employeeId}}",
+            "salaries"
+          ]
+        },
+        "description": "Создайте salary перед DELETE. salaryId автоматически сохранится из ответа в переменную коллекции."
+      }
+    },
+    {
+      "name": "Employee Salaries - Delete (DELETE /employees/{employee_id}/salaries/{id})",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees/{{employeeId}}/salaries/{{salaryId}}",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees",
+            "{{employeeId}}",
+            "salaries",
+            "{{salaryId}}"
+          ]
+        },
+        "description": "DELETE в Public API есть для вложенных сущностей (например salary), а не для удаления employee целиком."
+      }
+    },
+    {
+      "name": "Employees - Terminate (POST /employees/{employee_id}/terminate)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"effective_from\": \"{{defaultTerminateDate}}\",\n  \"termination_type_id\": {{terminationTypeId}},\n  \"termination_reason_id\": {{terminationReasonId}},\n  \"eligible_for_rehire\": true,\n  \"comment\": \"Postman terminate test\"\n}"
+        },
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/employees/{{employeeId}}/terminate",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "employees",
+            "{{employeeId}}",
+            "terminate"
+          ]
+        },
+        "description": "Аналог «удаления» сотрудника в HR-процессе."
+      }
+    },
+    {
+      "name": "Termination Types - List (GET /termination_types)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/termination_types?page=1",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "termination_types"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Termination Reasons - List (GET /termination_reasons)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-KEY",
+            "value": "{{peopleforceApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{peopleforceBaseUrl}}/termination_reasons?page=1",
+          "host": [
+            "{{peopleforceBaseUrl}}"
+          ],
+          "path": [
+            "termination_reasons"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "peopleforceBaseUrl",
+      "value": "https://app.peopleforce.io/api/public/v3",
+      "type": "string"
+    },
+    {
+      "key": "peopleforceApiKey",
+      "value": "PASTE_PEOPLEFORCE_API_KEY",
+      "type": "string"
+    },
+    {
+      "key": "employeeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "salaryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "terminationTypeId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "terminationReasonId",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "defaultHiredOn",
+      "value": "2026-04-21",
+      "type": "string"
+    },
+    {
+      "key": "defaultTerminateDate",
+      "value": "2026-04-22",
+      "type": "string"
+    },
+    {
+      "key": "defaultSalaryEffectiveOn",
+      "value": "2026-04-01",
+      "type": "string"
+    }
+  ]
+}

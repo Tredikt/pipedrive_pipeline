@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 
@@ -23,6 +24,40 @@ def _as_bool(val: Any) -> bool | None:
     if isinstance(val, str) and val.lower() in ("1", "true"):
         return True
     return None
+
+
+def _as_text_column(val: Any) -> str | None:
+    """Webhooks v2 отдают вложенные dict/list в полях, где GET API — плоская строка."""
+    if val is None:
+        return None
+    if isinstance(val, str):
+        return val
+    if isinstance(val, (int, float, bool, Decimal)):
+        return str(val)
+    if isinstance(val, (dict, list)):
+        return json.dumps(val, ensure_ascii=False, sort_keys=True)
+    return str(val)
+
+
+def _activity_type_str(val: Any) -> str | None:
+    if val is None:
+        return None
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict):
+        k = val.get("key") or val.get("name") or val.get("type")
+        if k is not None:
+            return str(k)
+        return json.dumps(val, ensure_ascii=False, sort_keys=True)
+    return str(val)
+
+
+def _int_field(val: Any) -> int | None:
+    """ID из числа, строки или объекта { value, id } как в v2."""
+    r = _ref_id(val)
+    if r is not None:
+        return r
+    return _safe_int(val)
 
 
 def _entity_id_str(row: dict[str, Any], id_key: str = "id") -> str | None:
@@ -105,7 +140,7 @@ def upsert_activity_dm(
     if aid is None:
         return
     owner_id = upsert_pipedrive_user(conn, row.get("owner_id"))
-    uid = _safe_int(row.get("user_id"))
+    uid = _int_field(row.get("user_id"))
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -129,23 +164,23 @@ def upsert_activity_dm(
             """,
             (
                 aid,
-                row.get("subject"),
-                str(row["type"]) if row.get("type") is not None else None,
+                _as_text_column(row.get("subject")),
+                _activity_type_str(row.get("type")),
                 _ref_id(row.get("deal_id")),
                 _ref_id(row.get("person_id")),
                 _ref_id(row.get("org_id")),
                 owner_id,
                 uid,
-                _safe_int(row.get("group_id")),
-                _safe_int(row.get("company_id")),
+                _int_field(row.get("group_id")),
+                _int_field(row.get("company_id")),
                 _to_date(row.get("due_date")),
-                row.get("due_time"),
-                str(row["duration"]) if row.get("duration") is not None else None,
-                row.get("note"),
+                _as_text_column(row.get("due_time")),
+                _as_text_column(row.get("duration")),
+                _as_text_column(row.get("note")),
                 _as_bool(row.get("busy_flag")),
-                row.get("public_description"),
+                _as_text_column(row.get("public_description")),
                 _as_bool(row.get("done")),
-                row.get("location"),
+                _as_text_column(row.get("location")),
                 parse_pipedrive_ts(row.get("add_time")),
                 parse_pipedrive_ts(row.get("update_time")),
                 parse_pipedrive_ts(row.get("marked_as_done_time")),

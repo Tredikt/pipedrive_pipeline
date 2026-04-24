@@ -175,6 +175,49 @@ def test_peopleforce_webhook_valid_signature_upsert() -> None:
 
 
 @patch("src.peopleforce.webhook_routes.connect", _fake_connect)
+def test_peopleforce_webhook_leave_request_create() -> None:
+    body = {
+        "action": "leave_request_create",
+        "data": {
+            "id": 9001,
+            "employee_id": 1,
+            "leave_type": "Vacation",
+            "state": "pending",
+            "amount": 1.0,
+            "tracking_time_in": "days",
+            "starts_on": "2026-01-10",
+            "ends_on": "2026-01-12",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+        },
+    }
+    r = _pf_client.post("/peopleforce/webhook", json=body)
+    assert r.status_code == 200
+    j = r.json()
+    assert j.get("ok") is True
+    assert j.get("entity") == "leave_request"
+    assert j.get("id") == 9001
+
+
+@patch("src.peopleforce.webhook_routes.connect", _fake_connect)
+def test_peopleforce_webhook_vacancy_create() -> None:
+    body = {
+        "action": "vacancy_create",
+        "data": {
+            "id": 200001,
+            "title": "CMO",
+            "state": "open",
+        },
+    }
+    r = _pf_client.post("/peopleforce/webhook", json=body)
+    assert r.status_code == 200
+    j = r.json()
+    assert j.get("ok") is True
+    assert j.get("entity") == "recruitment_vacancy"
+    assert j.get("id") == 200001
+
+
+@patch("src.peopleforce.webhook_routes.connect", _fake_connect)
 def test_peopleforce_webhook_unsupported_action_skipped() -> None:
     body = {"action": "document_uploaded", "data": {"id": 1}}
     r = _pf_client.post("/peopleforce/webhook", json=body)

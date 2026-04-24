@@ -19,6 +19,37 @@ class PeopleForceClient:
         self._key = api_key
         self._timeout = timeout_s
 
+    def request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """POST/PUT/PATCH/DELETE в Public API. Заголовок X-API-KEY."""
+        p = path if path.startswith("/") else f"/{path}"
+        url = f"{self._base}{p}"
+        headers: dict[str, str] = {
+            "X-API-KEY": self._key,
+            "Accept": "application/json",
+        }
+        if json is not None:
+            headers["Content-Type"] = "application/json"
+        m = method.strip().upper()
+        with httpx.Client(timeout=self._timeout) as client:
+            r = client.request(
+                m,
+                url,
+                headers=headers,
+                params=params,
+                json=json,
+            )
+            r.raise_for_status()
+        if not (r.content and r.content.strip()):
+            return None
+        return r.json()
+
     def get_json(
         self,
         path: str,
