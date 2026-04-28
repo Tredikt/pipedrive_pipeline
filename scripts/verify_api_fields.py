@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.config import resolve_pipedrive_api_base_url
-from src.pipedrive_client import PipedriveClient
+from src.pipedrive_client import PipedriveClient, pipedrive_list_next_start
 
 
 def _field_rows(body: dict) -> list[dict]:
@@ -48,10 +48,12 @@ def _load_all_fields(client: PipedriveClient, path: str) -> list[dict]:
             raise RuntimeError(f"{path}: {body}")
         batch = _field_rows(body)
         rows.extend(batch)
-        pag = (body.get("additional_data") or {}).get("pagination") or {}
-        if not pag.get("more_items_in_collection"):
+        nxt = pipedrive_list_next_start(
+            body, start=start, page_size=limit, row_count=len(batch)
+        )
+        if nxt is None:
             break
-        start = int(pag.get("next_start", start + limit))
+        start = nxt
     return rows
 
 

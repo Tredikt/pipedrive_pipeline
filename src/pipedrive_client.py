@@ -1,11 +1,51 @@
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Iterator
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+class PipedriveEndpointUnreadableError(RuntimeError):
+    """HTTP 200, но тело не JSON (прокси/HTML/обрыв). Синк может пропустить эндпоинт."""
+
+
+def pipedrive_list_next_start(
+    body: dict[str, Any],
+    *,
+    start: int,
+    page_size: int,
+    row_count: int,
+) -> int | None:
+    """
+    Следующий start для start/limit или None, если страниц больше нет.
+
+    Если more_items_in_collection не пришёл, не обрываем выгрузку на первой странице,
+    а продолжаем, пока пришла «полная» порция (как next_start/offset).
+    """
+    pag = (body.get("additional_data") or {}).get("pagination") or {}
+    more = pag.get("more_items_in_collection")
+    if more is True:
+        ns = pag.get("next_start")
+        return int(ns) if ns is not None else start + row_count
+    if more is False:
+        return None
+    # more is None: нестандартный/старый ответ
+    if row_count == 0:
+        return None
+    if row_count < page_size:
+        return None
+    ns = pag.get("next_start")
+    if ns is not None:
+        return int(ns)
+    logger.debug(
+        "Pipedrive pagination: more_items_in_collection missing, inferring next from row_count path=%s",
+        body.get("additional_data"),
+    )
+    return start + row_count
 
 
 class PipedriveClient:
@@ -24,7 +64,28 @@ class PipedriveClient:
         with httpx.Client(timeout=self._timeout) as client:
             r = client.get(url, params=merged)
             r.raise_for_status()
-            return r.json()
+            raw = r.content or b""
+            if not raw.strip():
+                logger.warning(
+                    "Pipedrive GET %s: пустое тело (HTTP %s)",
+                    p,
+                    r.status_code,
+                )
+                return {"success": True, "data": None}
+            try:
+                return json.loads(raw.decode("utf-8", errors="replace"))
+            except json.JSONDecodeError as e:
+                preview = raw[:400].decode("utf-8", errors="replace")
+                logger.warning(
+                    "Pipedrive GET %s: не JSON (HTTP %s): %s; начало ответа: %r",
+                    p,
+                    r.status_code,
+                    e,
+                    preview,
+                )
+                raise PipedriveEndpointUnreadableError(
+                    f"{p}: ответ не JSON (HTTP {r.status_code})"
+                ) from e
 
     def post_json(self, path: str, *, json_body: dict[str, Any]) -> dict[str, Any]:
         """POST JSON (например POST /v1/deals). api_token в query."""
@@ -77,10 +138,12 @@ class PipedriveClient:
             data = body.get("data")
             rows = _normalize_data(data)
             yield from rows
-            pag = (body.get("additional_data") or {}).get("pagination") or {}
-            if not pag.get("more_items_in_collection"):
+            nxt = pipedrive_list_next_start(
+                body, start=start, page_size=page_size, row_count=len(rows)
+            )
+            if nxt is None:
                 break
-            start = int(pag.get("next_start", start + page_size))
+            start = nxt
 
     def get_item(self, path: str, item_id: str | int) -> dict[str, Any] | None:
         """GET одной сущности: /v1/deals/123 → data."""

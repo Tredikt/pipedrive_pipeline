@@ -3,11 +3,34 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import psycopg
+
+
+def with_libpq_keepalive(dsn: str) -> str:
+    """
+    Для длинного sync: TCP keepalive, чтобы брокеры/CLoud DB не рвали idle-сессию.
+    Не дублирует параметр, если уже задан.
+    """
+    s = dsn.strip()
+    if "keepalives=1" in s or "keepalives = 1" in s:
+        return s
+    p = urlparse(s)
+    q = parse_qs(p.query, keep_blank_values=True)
+    keys = {k.lower() for k in q}
+    if "keepalives" not in keys:
+        q["keepalives"] = ["1"]
+        q["keepalives_idle"] = ["30"]
+        q["keepalives_interval"] = ["10"]
+        q["keepalives_count"] = ["3"]
+    new_q = urlencode(q, doseq=True)
+    return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
+
+
 @contextmanager
 def connect(database_url: str) -> Generator[psycopg.Connection, None, None]:
-    with psycopg.connect(database_url) as conn:
+    with psycopg.connect(with_libpq_keepalive(database_url)) as conn:
         yield conn
 
 

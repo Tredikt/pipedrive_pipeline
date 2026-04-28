@@ -33,6 +33,53 @@ def test_flat_employee_gender_object():
     assert f["gender"] == "female"
 
 
+def test_flat_employee_nested_termination_block():
+    raw = {
+        "id": 2,
+        "full_name": "Y",
+        "active": True,
+        "termination": {
+            "effective-from": "2026-01-01",
+            "terminated-on": "2026-01-15",
+            "employment-status": "terminated",
+        },
+    }
+    f = flat_employee_row(raw)
+    assert f["employment_status"] == "terminated"
+    assert str(f["termination_effective_on"]) == "2026-01-01"
+    assert str(f["terminated_on"]) == "2026-01-15"
+
+
+def test_flat_employee_hyphen_keys_aliases():
+    raw = {
+        "id": 1,
+        "full_name": "X",
+        "active": True,
+        "employment-status": "terminated",
+        "termination-effective-on": "2025-06-01",
+        "terminated-on": "2025-06-10",
+    }
+    f = flat_employee_row(raw)
+    assert f["employment_status"] == "terminated"
+    assert str(f["termination_effective_on"]) == "2025-06-01"
+    assert str(f["terminated_on"]) == "2025-06-10"
+
+
+def test_flat_employee_employment_status():
+    raw = {
+        "id": 99,
+        "full_name": "T",
+        "active": True,
+        "status": "terminated",
+        "termination_effective_on": "2025-06-01",
+        "terminated_on": "2025-06-15",
+    }
+    f = flat_employee_row(raw)
+    assert f["employment_status"] == "terminated"
+    assert str(f["termination_effective_on"]) == "2025-06-01"
+    assert str(f["terminated_on"]) == "2025-06-15"
+
+
 def test_webhook_shape_with_attributes():
     data = {
         "id": 5,

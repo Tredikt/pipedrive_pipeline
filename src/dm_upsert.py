@@ -226,6 +226,17 @@ def replace_custom_fields(
     entity_id: str,
     rows: list[tuple[str, str, Any]],
 ) -> None:
+    batch: list[tuple[str, str, str, str, str | None, Any | None]] = []
+    for field_key, field_name, val in rows:
+        v_text: str | None
+        v_json: Any
+        if isinstance(val, (dict, list)):
+            v_text = None
+            v_json = psycopg.types.json.Jsonb(val)
+        else:
+            v_text = str(val) if val is not None else None
+            v_json = None
+        batch.append((entity_type, entity_id, field_key, field_name, v_text, v_json))
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -234,22 +245,14 @@ def replace_custom_fields(
             """,
             (entity_type, entity_id),
         )
-        for field_key, field_name, val in rows:
-            v_text: str | None
-            v_json: Any
-            if isinstance(val, (dict, list)):
-                v_text = None
-                v_json = psycopg.types.json.Jsonb(val)
-            else:
-                v_text = str(val) if val is not None else None
-                v_json = None
-            cur.execute(
+        if batch:
+            cur.executemany(
                 """
                 INSERT INTO pipedrive_dm.custom_field_value (
                     entity_type, entity_id, field_key, field_name, value_text, value_json
                 ) VALUES (%s, %s, %s, %s, %s, %s);
                 """,
-                (entity_type, entity_id, field_key, field_name, v_text, v_json),
+                batch,
             )
 
 

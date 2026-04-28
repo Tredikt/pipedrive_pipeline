@@ -7,6 +7,12 @@ HTTP-приёмник: Pipedrive POST /webhook, PeopleForce POST /peopleforce/we
 
 Переменные: как у синка (DATABASE_URL, PIPEDRIVE_API_TOKEN, PIPEDRIVE_COMPANY_DOMAIN),
 опционально WEBHOOK_SECRET — тогда заголовок Authorization: Bearer <WEBHOOK_SECRET>.
+Опционально HR_MATCH_ALERT_WEBHOOK_URL — Incoming Webhook Slack или любой POST JSON:
+отправляется объект с полями reason, ids и коротким «text» на русском (инструкция менеджеру).
+
+Правило данных: новые строки master добавляет только PeopleForce (вебхук employee_* может INSERT).
+Pipedrive только дописывает идентификаторы к уже существующей строке; при отсутствии совпадения —
+уведомление, без создания строки HR из CRM.
 Проверка аккаунта Pipedrive: meta.host в теле webhook v2 должен совпадать с доменом из
 PIPEDRIVE_COMPANY_DOMAIN или WEBHOOK_EXPECTED_HOST (иначе 403). Опционально WEBHOOK_ALLOWED_IPS.
 
@@ -24,6 +30,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 
 from src.config import get_settings
 from src.db import connect
+from src.master_link import link_master_after_pipedrive_upsert
 from src.pipedrive_client import PipedriveClient
 from src.sync import sync_one_entity_webhook
 from src.webhook_delete import delete_entity_from_db
@@ -167,6 +174,21 @@ async def receive_webhook(
                 ok = sync_one_entity_webhook(
                     client, conn, spec_name, entity_id, webhook_body=body
                 )
+                if ok:
+                    try:
+                        eid = int(str(entity_id).strip())
+                        with conn.cursor() as cur:
+                            link_master_after_pipedrive_upsert(cur, spec_name, eid)
+                    except (ValueError, TypeError):
+                        logger.warning(
+                            "master_link: invalid entity_id=%r", entity_id
+                        )
+                    except Exception:
+                        logger.exception(
+                            "master_link after Pipedrive webhook failed spec=%s id=%s",
+                            spec_name,
+                            entity_id,
+                        )
                 conn.commit()
         except Exception:
             logger.exception(

@@ -2,6 +2,8 @@
 Сырая пагинированная выгрузка всех зарегистрированных GET-листов API v3 в
 peopleforce_raw.entity_record (по одной JSON-строке на объект).
 
+Пагинация по страницам — в PeopleForceClient.iter_paginated (metadata.pagination.pages).
+
 403/404 на отдельных путях пропускаются (лог + следующий path).
 """
 from __future__ import annotations

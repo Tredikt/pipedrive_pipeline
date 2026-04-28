@@ -1,0 +1,1342 @@
+{
+  "info": {
+    "name": "PeopleForce All Entities CRUD",
+    "description": "Автогенерация из src/peopleforce/bulk_endpoints.py. Для сотрудников добавлен POST .../terminate. Тела — заглушки; часть эндпоинтов не поддерживает CRUD.\n\nGET list: query page={{peopleforcePage}}. Полная выгрузка: page от 1 до metadata.pagination.pages (и count — всего записей). Не полагайтесь на один запрос с page=1.\n\n[probe_trim] Удалены папки (GET list → 404): company_holidays, cost_centers, custom_fields_employees, department_levels, document_types, projects, public_holidays, recruitment_applications, shifts, time_entries, work_schedules.\n\n[probe_trim] Удалены папки (GET list → 404): company_holidays, cost_centers, custom_fields_employees, department_levels, document_types, projects, public_holidays, recruitment_applications, shifts, time_entries, work_schedules.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "departments",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/departments?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/departments/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/departments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/departments/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/departments/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "divisions",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/divisions?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/divisions/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/divisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/divisions/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/divisions/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "locations",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/locations?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/locations/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/locations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/locations/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/locations/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "positions",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/positions?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/positions/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/positions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/positions/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/positions/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "job_levels",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/job_levels?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/job_levels/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/job_levels",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/job_levels/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/job_levels/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "employment_types",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employment_types?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employment_types/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employment_types",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employment_types/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employment_types/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "teams",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/teams?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/teams/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/teams",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/teams/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/teams/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "employees",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees?page={{peopleforcePage}}&status=all"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"first_name\": \"Postman\", \"last_name\": \"CRUD\", \"email\": \"postman.crud@example.invalid\", \"employee_number\": \"PM-CRUD\", \"hired_on\": \"2026-01-01\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"first_name\": \"Postman-UPD\", \"hired_on\": \"2026-01-01\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST terminate (if DELETE not available)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/employees/{{entityId}}/terminate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"effective_from\": \"2026-12-31\", \"termination_type_id\": 1, \"termination_reason_id\": 1, \"eligible_for_rehire\": true, \"comment\": \"Postman: use real type/reason ids from /termination_types\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "leave_requests",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_requests?page={{peopleforcePage}}&starts_on=2000-01-01&ends_on=2035-12-31"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_requests/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_requests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_requests/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_requests/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "leave_types",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_types?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_types/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_types",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_types/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/leave_types/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "working_patterns",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/working_patterns?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/working_patterns/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/working_patterns",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/working_patterns/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/working_patterns/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recruitment_vacancies",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/vacancies?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/vacancies/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/vacancies",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman recruitment test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/vacancies/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/vacancies/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recruitment_candidates",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/candidates?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/candidates/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/candidates",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman recruitment test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/candidates/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/recruitment/candidates/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pay_schedules",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/pay_schedules?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/pay_schedules/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/pay_schedules",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/pay_schedules/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/pay_schedules/{{entityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "assets",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/assets?page={{peopleforcePage}}"
+          }
+        },
+        {
+          "name": "GET by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/assets/{{entityId}}"
+          }
+        },
+        {
+          "name": "POST create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/assets",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD test\"}"
+            }
+          }
+        },
+        {
+          "name": "PUT update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/assets/{{entityId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Postman CRUD updated\"}"
+            }
+          }
+        },
+        {
+          "name": "DELETE",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "{{peopleforceApiKey}}"
+              }
+            ],
+            "url": "{{peopleforceBaseUrl}}/assets/{{entityId}}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "peopleforceBaseUrl",
+      "value": "https://app.peopleforce.io/api/public/v3",
+      "type": "string"
+    },
+    {
+      "key": "peopleforceApiKey",
+      "value": "PASTE_PEOPLEFORCE_API_KEY",
+      "type": "string"
+    },
+    {
+      "key": "entityId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "peopleforcePage",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}

@@ -5,6 +5,32 @@ from typing import Any, Iterator
 import httpx
 
 
+def _peopleforce_list_total_pages(body: dict[str, Any]) -> int:
+    """
+    В ответе list API v3 total pages лежит в metadata.pagination.pages
+    (а не в metadata.pages). Без вложенного ключа пагинация «ломается» в 1 страницу.
+    """
+    meta = body.get("metadata")
+    if not isinstance(meta, dict):
+        return 1
+    pag = meta.get("pagination")
+    if isinstance(pag, dict):
+        v = pag.get("pages")
+        if v is not None:
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                n = 1
+            return max(0, n)
+    v = meta.get("pages")
+    if v is not None:
+        try:
+            return max(0, int(v))
+        except (TypeError, ValueError):
+            pass
+    return 1
+
+
 class PeopleForceClient:
     """Клиент PeopleForce public API v3: заголовок X-API-KEY."""
 
@@ -79,8 +105,8 @@ class PeopleForceClient:
         skip_on_client_error: bool = False,
     ) -> Iterator[dict[str, Any]]:
         """
-        Список с data[] + metadata.pages (PeopleForce pagination page=1..n).
-        См. https://developer.peopleforce.io/docs/pagination
+        Список: data[] + metadata.pagination (page, pages, count, items).
+        Цикл page=1..metadata.pagination.pages. См. PeopleForce docs/pagination.
         """
         page = 1
         while True:
@@ -95,8 +121,9 @@ class PeopleForceClient:
             data = body.get("data")
             rows: list[dict[str, Any]] = data if isinstance(data, list) else []
             yield from rows
-            meta = body.get("metadata") or {}
-            pages = int(meta.get("pages") or 1)
-            if page >= pages or not rows:
+            total_pages = _peopleforce_list_total_pages(body)
+            if total_pages <= 0:
+                total_pages = 1
+            if page >= total_pages:
                 break
             page += 1

@@ -1,5 +1,10 @@
+"""Pipedrive → pipedrive_raw / pipedrive_dm: сущности тянутся PipedriveClient.iter_collection
+и pipedrive_list_next_start (start/limit, additional_data.pagination)."""
+
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from pathlib import Path
 from typing import Any, Iterator
@@ -27,8 +32,12 @@ from src.dm_reference import (
 )
 from src.dm_upsert import upsert_deal_dm, upsert_organization_dm, upsert_person_dm
 from src.entities import ENTITY_SPECS, EntitySpec
-from src.pipedrive_client import PipedriveClient
-from src.webhook_parse import row_from_webhook_body
+from src.pipedrive_client import (
+    PipedriveClient,
+    PipedriveEndpointUnreadableError,
+    pipedrive_list_next_start,
+)
+from src.webhook_parse import merge_api_row_with_webhook, row_from_webhook_body
 from src.transform import (
     build_field_key_to_label,
     extract_custom_resolved,
@@ -92,10 +101,12 @@ def _load_field_rows(client: PipedriveClient, fields_path: str) -> list[dict[str
         else:
             batch = []
         out.extend(batch)
-        pag = (body.get("additional_data") or {}).get("pagination") or {}
-        if not pag.get("more_items_in_collection"):
+        nxt = pipedrive_list_next_start(
+            body, start=start, page_size=limit, row_count=len(batch)
+        )
+        if nxt is None:
             break
-        start = int(pag.get("next_start", start + limit))
+        start = nxt
     return out
 
 
@@ -138,26 +149,45 @@ def _field_mapping_from_db(conn: Any, logical_entity: str) -> dict[str, str]:
 
 
 def _record_id(row: dict[str, Any], id_key: str) -> str:
+    """
+    Стабильный ключ строки для pipedrive_raw / DM.
+
+    У части справочников (например lead_sources) бывают встроенные записи только с name,
+    без числового id — тогда используем key/type или синтетический id по имени / хэшу.
+    """
     v = row.get(id_key)
-    if v is None:
-        raise KeyError(f"Record missing {id_key}: {row!r}")
-    return str(v).strip()
+    if v is not None and str(v).strip() != "":
+        return str(v).strip()
+    for alt in ("key", "type", "uuid"):
+        a = row.get(alt)
+        if a is not None and str(a).strip() != "":
+            return str(a).strip()
+    name = row.get("name")
+    if isinstance(name, str) and name.strip():
+        return f"name:{name.strip()}"
+    h = hashlib.sha256(
+        json.dumps(row, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:40]
+    return f"sha256:{h}"
 
 
 def _iter_entity_rows(
     client: PipedriveClient,
     spec: EntitySpec,
 ) -> Iterator[dict[str, Any]]:
-    """Пагинация; 402/403/404 — пропуск (платный модуль / нет прав), без падения всего синка."""
+    """Пагинация; 400/402/403/404/405 — пропуск (эндпоинт недоступен / иначе в API), без падения синка."""
     page = spec.page_size if spec.page_size is not None else 500
     try:
         yield from client.iter_collection(spec.list_path, page_size=page)
     except httpx.HTTPStatusError as e:
         code = e.response.status_code
-        if code in (402, 403, 404):
+        if code in (400, 402, 403, 404, 405):
             print(f"{spec.name}: пропущено (HTTP {code}) {spec.list_path}")
             return
         raise
+    except PipedriveEndpointUnreadableError as e:
+        print(f"{spec.name}: пропущено (не JSON / пустой ответ): {spec.list_path} ({e})")
+        return
 
 
 def resolve_key_to_label_webhook(conn: Any, spec: EntitySpec) -> dict[str, str]:
@@ -254,6 +284,8 @@ def sync_entity_spec(client: PipedriveClient, conn: Any, spec: EntitySpec) -> in
     parent = PARENT_ENTITY_FOR_FIELD_SPEC.get(spec.name)
     key_to_label: dict[str, str] = {}
 
+    print(f"{spec.name}: старт (поля + список из API)…", flush=True)
+
     if spec.fields_path and not parent:
         try:
             key_to_label = _sync_field_definitions_for_entity(
@@ -271,6 +303,14 @@ def sync_entity_spec(client: PipedriveClient, conn: Any, spec: EntitySpec) -> in
     if not parent and spec.name in ENTITIES_WITH_CUSTOM_FIELDS and not key_to_label:
         key_to_label = _field_mapping_from_db(conn, spec.name)
 
+    if spec.fields_path and not parent:
+        print(
+            f"{spec.name}: поля загружены ({len(key_to_label)} в маппинге), идёт список {spec.list_path}…",
+            flush=True,
+        )
+    else:
+        print(f"{spec.name}: список {spec.list_path}…", flush=True)
+
     count = 0
 
     for row in _iter_entity_rows(client, spec):
@@ -279,6 +319,8 @@ def sync_entity_spec(client: PipedriveClient, conn: Any, spec: EntitySpec) -> in
         count += 1
         if count % 200 == 0:
             conn.commit()
+        if count % 500 == 0:
+            print(f"  {spec.name}: {count} строк…", flush=True)
 
     conn.commit()
     return count
@@ -302,7 +344,8 @@ def sync_one_entity_webhook(
     webhook_body: dict[str, Any] | None,
 ) -> bool:
     """
-    Одна сущность в БД: сначала строка из тела webhook v2 (data), иначе GET по id.
+    Одна сущность в БД: строка из GET объединяется с data из webhook v2;
+    webhook без-null полей перекрывает GET (лиды/files при частичном payload или 404 на GET).
     """
     spec = next((s for s in ENTITY_SPECS if s.name == spec_name), None)
     if spec is None:
@@ -312,18 +355,23 @@ def sync_one_entity_webhook(
         return False
     key_to_label = resolve_key_to_label_webhook(conn, spec)
 
-    row: dict[str, Any] | None = None
+    row_wh: dict[str, Any] | None = None
     if webhook_body:
-        row = row_from_webhook_body(webhook_body, entity_id)
-        if row is not None:
+        row_wh = row_from_webhook_body(webhook_body, entity_id)
+        if row_wh is not None:
             logger.info(
-                "Webhook upsert from payload (skip API GET) spec=%s id=%s",
+                "Webhook data row spec=%s id=%s — merge с GET при наличии",
                 spec_name,
                 entity_id,
             )
+    row_api = client.get_item(spec.list_path, entity_id)
+    row = merge_api_row_with_webhook(row_api, row_wh)
     if row is None:
-        row = client.get_item(spec.list_path, entity_id)
-    if row is None:
+        logger.warning(
+            "Нет данных для upsert: spec=%s id=%s (GET и webhook пусты или несовместимы)",
+            spec_name,
+            entity_id,
+        )
         return False
     store_entity_row(conn, spec, row, key_to_label=key_to_label, parent=parent)
     return True
@@ -334,6 +382,7 @@ def run_sync(
     init_db: bool = False,
     only: str | None = None,
     schema_only: bool = False,
+    skip: frozenset[str] | None = None,
 ) -> None:
     root = Path(__file__).resolve().parents[1]
     sql_file = root / "sql" / "001_init_schema.sql"
@@ -364,6 +413,20 @@ def run_sync(
             specs = tuple(s for s in ENTITY_SPECS if s.name == only)
             if not specs:
                 raise RuntimeError(f"Unknown entity {only!r}")
+        sk = skip or frozenset()
+        if sk:
+            unknown = sk - {s.name for s in ENTITY_SPECS}
+            if unknown:
+                raise RuntimeError(
+                    f"Неизвестные имена в --skip: {sorted(unknown)}. "
+                    f"Допустимы: {', '.join(sorted(s.name for s in ENTITY_SPECS))}"
+                )
+            specs = tuple(s for s in specs if s.name not in sk)
+            print(f"Пропуск (--skip): {', '.join(sorted(sk))}", flush=True)
+
+        if not specs:
+            print("Нечего синхронизировать (пустой список после --only/--skip).", flush=True)
+            return
 
         for spec in specs:
             n = sync_entity_spec(client, conn, spec)
@@ -381,8 +444,24 @@ def __main__() -> None:
         help="Только применить SQL-схему и выйти (без Pipedrive)",
     )
     p.add_argument("--only", default=None, help="Sync single entity name, e.g. deals")
+    p.add_argument(
+        "--skip",
+        default="",
+        metavar="NAMES",
+        help="Не синхронизировать (имена через запятую), например: deals,persons,files",
+    )
     args = p.parse_args()
-    run_sync(init_db=args.init_db, only=args.only, schema_only=args.schema_only)
+    raw_skip = (args.skip or "").strip()
+    skip_set: frozenset[str] | None = None
+    if raw_skip:
+        parts = [x.strip() for x in raw_skip.replace(";", ",").split(",")]
+        skip_set = frozenset(p for p in parts if p)
+    run_sync(
+        init_db=args.init_db,
+        only=args.only,
+        schema_only=args.schema_only,
+        skip=skip_set,
+    )
 
 
 if __name__ == "__main__":

@@ -57,6 +57,18 @@ def _to_text(x: Any) -> str | None:
     return str(x)[:4000] if x is not None else None
 
 
+def _pick_scalar(src: dict[str, Any], *keys: str) -> Any:
+    """Первое непустое значение по ключам (варианты snake_case / kebab / camel для PF webhook/API)."""
+    for k in keys:
+        if k not in src:
+            continue
+        v = src[k]
+        if v is None or v == "":
+            continue
+        return v
+    return None
+
+
 def _parse_date(x: Any) -> date | None:
     if x is None or x == "":
         return None
@@ -99,6 +111,10 @@ def flat_employee_row(src: dict[str, Any]) -> dict[str, Any]:
     div = s.get("division") if isinstance(s.get("division"), dict) else {}
     dep = s.get("department") if isinstance(s.get("department"), dict) else {}
     rep = s.get("reporting_to") if isinstance(s.get("reporting_to"), dict) else {}
+    pick_src: dict[str, Any] = dict(s)
+    term_blk = s.get("termination")
+    if isinstance(term_blk, dict):
+        pick_src = {**term_blk, **s}
     eid = s.get("id")
     if eid is None:
         raise ValueError("employee id missing")
@@ -150,6 +166,33 @@ def flat_employee_row(src: dict[str, Any]) -> dict[str, Any]:
         "department_id": _nid(dep, "id") if dep else None,
         "manager_employee_id": _nid(rep, "id") if rep else None,
         "reporting_to_id": _nid(rep, "id") if rep else None,
+        "employment_status": _to_text(
+            _pick_scalar(
+                pick_src,
+                "status",
+                "employment_status",
+                "employment-status",
+            )
+        ),
+        "termination_effective_on": _parse_date(
+            _pick_scalar(
+                pick_src,
+                "termination_effective_on",
+                "termination-effective-on",
+                "termination_effective_date",
+                "termination-effective-date",
+                "effective_from",
+                "effective-from",
+            )
+        ),
+        "terminated_on": _parse_date(
+            _pick_scalar(
+                pick_src,
+                "terminated_on",
+                "terminated-on",
+                "terminatedOn",
+            )
+        ),
     }
 
 
@@ -282,10 +325,14 @@ def upsert_employee_row(cur: psycopg.Cursor, f: dict[str, Any]) -> None:
             avatar_url, probation_ends_on, hired_on, skype_username, slack_username,
             twitter_username, facebook_url, linkedin_url,
             position_id, job_level_id, location_id, employment_type_id, division_id, department_id,
-            manager_employee_id, reporting_to_id, synced_at
+            manager_employee_id, reporting_to_id,
+            employment_status, termination_effective_on, terminated_on,
+            synced_at
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+            %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s,
+            NOW()
         )
         ON CONFLICT (id) DO UPDATE SET
             active = EXCLUDED.active, access = EXCLUDED.access, employee_number = EXCLUDED.employee_number,
@@ -300,6 +347,9 @@ def upsert_employee_row(cur: psycopg.Cursor, f: dict[str, Any]) -> None:
             location_id = EXCLUDED.location_id, employment_type_id = EXCLUDED.employment_type_id,
             division_id = EXCLUDED.division_id, department_id = EXCLUDED.department_id,
             manager_employee_id = EXCLUDED.manager_employee_id, reporting_to_id = EXCLUDED.reporting_to_id,
+            employment_status = EXCLUDED.employment_status,
+            termination_effective_on = EXCLUDED.termination_effective_on,
+            terminated_on = EXCLUDED.terminated_on,
             synced_at = NOW()
         """,
         (
@@ -333,6 +383,9 @@ def upsert_employee_row(cur: psycopg.Cursor, f: dict[str, Any]) -> None:
             f.get("department_id"),
             f.get("manager_employee_id"),
             f.get("reporting_to_id"),
+            f.get("employment_status"),
+            f.get("termination_effective_on"),
+            f.get("terminated_on"),
         ),
     )
 

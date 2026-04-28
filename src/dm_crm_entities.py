@@ -75,6 +75,9 @@ def upsert_user_from_users_api(conn: psycopg.Connection, row: dict[str, Any]) ->
     has_pic = row.get("has_pic")
     if isinstance(has_pic, bool):
         has_pic = 1 if has_pic else 0
+    active_f = _as_bool(row.get("active_flag"))
+    activated = _as_bool(row.get("activated"))
+    is_admin = _as_bool(row.get("is_admin"))
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -86,45 +89,45 @@ def upsert_user_from_users_api(conn: psycopg.Connection, row: dict[str, Any]) ->
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (id) DO UPDATE SET
-                name = COALESCE(EXCLUDED.name, pipedrive_dm.pipedrive_user.name),
-                email = COALESCE(EXCLUDED.email, pipedrive_dm.pipedrive_user.email),
-                active_flag = COALESCE(EXCLUDED.active_flag, pipedrive_dm.pipedrive_user.active_flag),
-                has_pic = COALESCE(EXCLUDED.has_pic, pipedrive_dm.pipedrive_user.has_pic),
-                pic_hash = COALESCE(EXCLUDED.pic_hash, pipedrive_dm.pipedrive_user.pic_hash),
-                lang = COALESCE(EXCLUDED.lang, pipedrive_dm.pipedrive_user.lang),
-                locale = COALESCE(EXCLUDED.locale, pipedrive_dm.pipedrive_user.locale),
-                timezone_name = COALESCE(EXCLUDED.timezone_name, pipedrive_dm.pipedrive_user.timezone_name),
-                phone = COALESCE(EXCLUDED.phone, pipedrive_dm.pipedrive_user.phone),
-                activated = COALESCE(EXCLUDED.activated, pipedrive_dm.pipedrive_user.activated),
-                last_login = COALESCE(EXCLUDED.last_login, pipedrive_dm.pipedrive_user.last_login),
-                created = COALESCE(EXCLUDED.created, pipedrive_dm.pipedrive_user.created),
-                modified = COALESCE(EXCLUDED.modified, pipedrive_dm.pipedrive_user.modified),
-                role_id = COALESCE(EXCLUDED.role_id, pipedrive_dm.pipedrive_user.role_id),
-                default_currency = COALESCE(EXCLUDED.default_currency, pipedrive_dm.pipedrive_user.default_currency),
-                icon_url = COALESCE(EXCLUDED.icon_url, pipedrive_dm.pipedrive_user.icon_url),
-                is_admin = COALESCE(EXCLUDED.is_admin, pipedrive_dm.pipedrive_user.is_admin),
-                timezone_offset = COALESCE(EXCLUDED.timezone_offset, pipedrive_dm.pipedrive_user.timezone_offset),
+                name = EXCLUDED.name,
+                email = EXCLUDED.email,
+                active_flag = EXCLUDED.active_flag,
+                has_pic = EXCLUDED.has_pic,
+                pic_hash = EXCLUDED.pic_hash,
+                lang = EXCLUDED.lang,
+                locale = EXCLUDED.locale,
+                timezone_name = EXCLUDED.timezone_name,
+                phone = EXCLUDED.phone,
+                activated = EXCLUDED.activated,
+                last_login = EXCLUDED.last_login,
+                created = EXCLUDED.created,
+                modified = EXCLUDED.modified,
+                role_id = EXCLUDED.role_id,
+                default_currency = EXCLUDED.default_currency,
+                icon_url = EXCLUDED.icon_url,
+                is_admin = EXCLUDED.is_admin,
+                timezone_offset = EXCLUDED.timezone_offset,
                 synced_at = NOW();
             """,
             (
                 uid,
                 row.get("name"),
                 row.get("email"),
-                row.get("active_flag"),
+                active_f,
                 has_pic,
                 str(row["pic_hash"]) if row.get("pic_hash") else None,
                 row.get("lang"),
                 row.get("locale"),
                 row.get("timezone_name"),
                 row.get("phone"),
-                row.get("activated"),
+                activated,
                 parse_pipedrive_ts(row.get("last_login")),
                 parse_pipedrive_ts(row.get("created")),
                 parse_pipedrive_ts(row.get("modified")),
                 _safe_int(row.get("role_id")),
                 row.get("default_currency"),
                 row.get("icon_url"),
-                row.get("is_admin"),
+                is_admin,
                 str(row["timezone_offset"]) if row.get("timezone_offset") is not None else None,
             ),
         )

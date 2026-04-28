@@ -20,6 +20,7 @@ from src.peopleforce.dm_extra import (
     upsert_recruitment_candidate_row,
     upsert_recruitment_vacancy_row,
 )
+from src.master_link import link_master_after_pf_employee_upsert
 from src.peopleforce.parse import (
     flat_employee_row,
     merge_webhook_employee_data,
@@ -272,6 +273,10 @@ def process_peopleforce_webhook_body(
             external_id=str(eid),
             raw=merged,
         )
+        try:
+            link_master_after_pf_employee_upsert(cur, eid, flat)
+        except Exception:
+            logger.exception("master_link PF employee failed eid=%s", eid)
         return {"ok": True, "action": "upserted", "entity": "employee", "id": eid}
 
     if a == "workflow" or a.startswith("survey_"):

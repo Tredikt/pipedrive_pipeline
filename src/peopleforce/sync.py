@@ -1,4 +1,7 @@
-"""Полная выгрузка PeopleForce API v3 -> peopleforce_dm (и опционально peopleforce_raw)."""
+"""Полная выгрузка PeopleForce API v3 -> peopleforce_dm (и опционально peopleforce_raw).
+
+Списочные GET идут через PeopleForceClient.iter_paginated (page 1..metadata.pagination.pages).
+"""
 
 from __future__ import annotations
 
@@ -40,6 +43,7 @@ _SQL_009 = _ROOT / "sql" / "009_peopleforce.sql"
 _SQL_010 = _ROOT / "sql" / "010_peopleforce_dm_extend.sql"
 _SQL_011 = _ROOT / "sql" / "011_peopleforce_recruitment_candidate.sql"
 _SQL_012 = _ROOT / "sql" / "012_peopleforce_dm_flat.sql"
+_SQL_020 = _ROOT / "sql" / "020_peopleforce_employee_employment.sql"
 
 
 def _init_peopleforce_schema(conn: Any) -> None:
@@ -47,6 +51,7 @@ def _init_peopleforce_schema(conn: Any) -> None:
     init_schema(conn, str(_SQL_010))
     init_schema(conn, str(_SQL_011))
     init_schema(conn, str(_SQL_012))
+    init_schema(conn, str(_SQL_020))
 
 
 def _ensure_dm_extend_schema(conn: Any) -> None:
@@ -123,6 +128,36 @@ def _ensure_dm_flat_012(conn: Any) -> None:
     init_schema(conn, str(_SQL_012))
     print(
         "Прогнан sql/012_peopleforce_dm_flat.sql (нормализованные поля витрины).",
+        flush=True,
+    )
+
+
+def _ensure_employee_employment_020(conn: Any) -> None:
+    """Колонки статуса/увольнения для peopleforce_dm.employee (миграция 020)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'peopleforce_dm'
+              AND table_name = 'employee'
+              AND column_name = 'employment_status'
+            """
+        )
+        if cur.fetchone() is not None:
+            return
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'peopleforce_dm'
+              AND table_name = 'employee'
+            """
+        )
+        if not cur.fetchone():
+            return
+    init_schema(conn, str(_SQL_020))
+    print(
+        "Прогнан sql/020_peopleforce_employee_employment.sql (статус/увольнение PF).",
         flush=True,
     )
 
@@ -316,7 +351,7 @@ def run_sync(
         with connect(get_database_url()) as conn:
             _init_peopleforce_schema(conn)
         print(
-            "Схема peopleforce: 009 + 010 + 011 + 012 (применена).",
+            "Схема peopleforce: 009 + 010 + 011 + 012 + 020 (применена).",
             flush=True,
         )
         if schema_only:
@@ -340,6 +375,7 @@ def run_sync(
             _ensure_dm_extend_schema(conn)
             _ensure_recruitment_candidate_011(conn)
             _ensure_dm_flat_012(conn)
+        _ensure_employee_employment_020(conn)
         if only:
             n = 0
             if only == "employees":
@@ -408,7 +444,7 @@ def main() -> None:
     p.add_argument(
         "--init-db",
         action="store_true",
-        help="Apply sql/009..012 (схема PeopleForce + DM + нормализованные поля)",
+        help="Apply sql/009..020 (схема PeopleForce + DM + нормализованные поля + статус сотрудника)",
     )
     p.add_argument(
         "--schema-only",
