@@ -25,11 +25,12 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
-from src.config import get_settings
-from src.db import connect
+from src.config import get_database_url, get_settings
+from src.db import connect, init_schema
 from src.master_link import link_master_after_pipedrive_upsert
 from src.pipedrive_client import PipedriveClient
 from src.sync import sync_one_entity_webhook
@@ -44,6 +45,8 @@ from src.webhook_client import (
 )
 
 logger = logging.getLogger(__name__)
+
+_SQL_PERSON_IDENTITY = Path(__file__).resolve().parent.parent / "sql" / "021_master_person_identity.sql"
 
 app = FastAPI(
     title="CRM webhooks (Pipedrive + PeopleForce)",
@@ -74,6 +77,26 @@ def _configure_logging() -> None:
             h.setFormatter(fmt)
             lg.addHandler(h)
         lg.propagate = False
+
+    try:
+        if _SQL_PERSON_IDENTITY.is_file():
+            with connect(get_database_url()) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'master' AND table_name = 'person_identity'
+                        """
+                    )
+                    if cur.fetchone() is None:
+                        init_schema(conn, str(_SQL_PERSON_IDENTITY))
+                        logger.info(
+                            "Applied sql/021_master_person_identity.sql (person_identity)"
+                        )
+        else:
+            logger.warning("Missing migration file: %s", _SQL_PERSON_IDENTITY)
+    except Exception as e:
+        logger.warning("person_identity migration skipped: %s", e)
 
 
 @app.get("/health")
