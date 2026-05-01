@@ -8,4 +8,17 @@ __pycache__/
 .idea/
 .vscode/
 *.log
-    
+
+# Excel — временные lock-файлы при открытой книге
+**/~$*
+
+# Локальные выгрузки / входные данные для скриптов (CSV, XLSX и т.п.)
+/files/
+
+# Postman — локальные бэкапы коллекций (основной файл без .bak)
+*.postman_collection.json.bak
+
+# Google OAuth / ключи (не коммитить)
+credentials.json
+google_oauth_client.json
+google_analytics_token.json
