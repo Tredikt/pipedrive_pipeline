@@ -1,0 +1,10 @@
+services:
+  pipedrive-webhook:
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
