@@ -1,0 +1,3 @@
+# Опционально: синхронизация GA4 (python -m src.google_analytics.sync, probe)
+google-analytics-data>=0.18.0
+google-auth-oauthlib>=1.2.0

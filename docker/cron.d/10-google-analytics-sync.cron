@@ -1,0 +1,2 @@
+# GA4 → Postgres. Расписание меняйте здесь или добавляйте новые файлы *.cron в эту папку.
+*/15 * * * * root /app/docker/cron/run-google-analytics-sync.sh >> /proc/1/fd/2 2>&1

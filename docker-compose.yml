@@ -8,3 +8,18 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+  # Все фоновые задания по расписанию: docker/cron.d/*.cron + скрипты docker/cron/*.sh.
+  # При старте контейнера собирается /etc/cron.d/app-crontabs и выполняется cron -f.
+  # Добавьте новый job: файл docker/cron.d/20-*.cron и при необходимости docker/cron/run-*.sh.
+  # Расписание без пересборки: смонтируйте каталог (см. volumes ниже).
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile.cron
+    env_file:
+      - .env
+    restart: unless-stopped
+    # volumes:
+    #   - ./docker/cron.d:/app/docker/cron.d:ro
+    #   - ./google_oauth_client.json:/app/google_oauth_client.json:ro

@@ -1,0 +1,26 @@
+# Универсальный контейнер cron: задания в docker/cron.d/*.cron, раннеры в docker/cron/*.sh
+# Переменные — через .env (env_file в compose). При старте контейнера поднимается cron -f.
+
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends cron \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt requirements-google-analytics.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-google-analytics.txt
+
+COPY src/ ./src/
+COPY sql/ ./sql/
+
+COPY docker/cron.d/ /app/docker/cron.d/
+COPY docker/cron/ /app/docker/cron/
+
+COPY docker/entrypoint-cron.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /app/docker/cron/*.sh
+
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["/entrypoint.sh"]
