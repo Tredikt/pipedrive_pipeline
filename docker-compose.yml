@@ -17,10 +17,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.cron
-    # Те же переменные, что у webhook (.env рядом с compose). Отдельно: см. docker/entrypoint-cron.sh — cron не наследует env контейнера.
+    # Те же переменные (.env рядом с compose). Cron не наследует env процесса — см. docker/entrypoint-cron.sh.
+    # GA: файл google_oauth_client.json не в образе crona — нужен volumes ниже, иначе FileNotFoundError в auth.py.
     env_file:
       - .env
     restart: unless-stopped
-    # volumes:
-    #   - ./docker/cron.d:/app/docker/cron.d:ro
-    #   - ./google_oauth_client.json:/app/google_oauth_client.json:ro
+    volumes:
+      # OAuth Desktop JSON (не кладём в образ). Путь как на хосте: ./ от каталога compose.
+      - ./google_oauth_client.json:/app/google_oauth_client.json:ro
+      # Файл токена после первого входа локально или внутри cron; опционально, если задаёте только GA_REFRESH_TOKEN в .env
+      # - ./google_analytics_token.json:/app/google_analytics_token.json:rw
+      # Свои crontabs без rebuild:
+      # - ./docker/cron.d:/app/docker/cron.d:ro
