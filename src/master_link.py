@@ -1,8 +1,9 @@
 """
-Связка master.hr_employee и master.person_identity с витринами после webhook-upsert.
+Связка master.hr_employee и master.person_identity после webhook-upsert.
 
-Правило: Pipedrive дописывает pipedrive_* у уже существующих строк master по совпадению email;
-PeopleForce проставляет pf_id там же. Таблица person_identity склеивает все известные id по email.
+PeopleForce — источник правды: создаёт/обновляет строки person_identity (имя, PF id).
+Pipedrive только merge по email (pipedrive_* и подсказка jira из HR); без совпадения —
+master.identity_link_pending + опционально HR_MATCH_ALERT_WEBHOOK_URL.
 """
 
 from __future__ import annotations
@@ -11,7 +12,12 @@ from typing import Any
 
 import psycopg
 
-from src.identity_registry import upsert_person_identity_row
+from src.identity_registry import (
+    merge_person_identity_from_crm,
+    notify_identity_match_miss,
+    record_identity_link_pending,
+    upsert_person_identity_from_peopleforce,
+)
 
 
 def _hr_jira_for_email(cur: psycopg.Cursor, email: str | None) -> str | None:
@@ -28,6 +34,32 @@ def _hr_jira_for_email(cur: psycopg.Cursor, email: str | None) -> str | None:
     )
     row = cur.fetchone()
     return str(row[0]).strip() if row and row[0] else None
+
+
+def _pipedrive_miss(
+    cur: psycopg.Cursor,
+    *,
+    entity_kind: str,
+    entity_id: int,
+    email: str | None,
+    detail: str,
+) -> None:
+    record_identity_link_pending(
+        cur,
+        source_system="pipedrive",
+        entity_kind=entity_kind,
+        entity_id=entity_id,
+        email=email,
+        detail=detail,
+        payload=None,
+    )
+    notify_identity_match_miss(
+        source_system="pipedrive",
+        entity_kind=entity_kind,
+        entity_id=entity_id,
+        email=email,
+        detail=detail,
+    )
 
 
 def link_master_after_pipedrive_upsert(
@@ -53,14 +85,25 @@ def link_master_after_pipedrive_upsert(
             (entity_id,),
         )
         row = cur.fetchone()
-        if row and row[0]:
-            em, nm = row[0], row[1]
-            upsert_person_identity_row(
+        if not row or not row[0]:
+            return
+        em, nm = row[0], row[1]
+        em_s = str(em).strip()
+        jid = _hr_jira_for_email(cur, em_s)
+        merged = merge_person_identity_from_crm(
+            cur,
+            email=em_s,
+            pipedrive_user_id=entity_id,
+            jira_id=jid,
+            full_name_hint=str(nm).strip() if nm else None,
+        )
+        if not merged:
+            _pipedrive_miss(
                 cur,
-                email=str(em),
-                full_name=str(nm).strip() if nm else None,
-                pipedrive_user_id=entity_id,
-                jira_id=_hr_jira_for_email(cur, str(em)),
+                entity_kind="user",
+                entity_id=entity_id,
+                email=em_s,
+                detail="Нет person_identity по этому email (ожидается запись из PeopleForce).",
             )
         return
 
@@ -89,21 +132,32 @@ def link_master_after_pipedrive_upsert(
             (entity_id,),
         )
         row = cur.fetchone()
-        if row and row[0]:
-            em, nm = row[0], row[1]
-            upsert_person_identity_row(
+        if not row or not row[0]:
+            return
+        em, nm = row[0], row[1]
+        em_s = str(em).strip()
+        jid = _hr_jira_for_email(cur, em_s)
+        merged = merge_person_identity_from_crm(
+            cur,
+            email=em_s,
+            pipedrive_person_id=entity_id,
+            jira_id=jid,
+            full_name_hint=str(nm).strip() if nm else None,
+        )
+        if not merged:
+            _pipedrive_miss(
                 cur,
-                email=str(em),
-                full_name=str(nm).strip() if nm else None,
-                pipedrive_person_id=entity_id,
-                jira_id=_hr_jira_for_email(cur, str(em)),
+                entity_kind="person",
+                entity_id=entity_id,
+                email=em_s,
+                detail="Нет person_identity по этому email (ожидается запись из PeopleForce).",
             )
 
 
 def link_master_after_pf_employee_upsert(
     cur: psycopg.Cursor, employee_id: int, flat: dict[str, Any]
 ) -> None:
-    """Проставить master.hr_employee.pf_id по email и обновить person_identity."""
+    """Проставить master.hr_employee.pf_id по email и создать/обновить person_identity."""
     email = flat.get("email")
     if email is None:
         return
@@ -119,10 +173,15 @@ def link_master_after_pf_employee_upsert(
         (employee_id, em),
     )
     fn = flat.get("full_name")
-    upsert_person_identity_row(
+    fn_raw = str(fn).strip() if fn else None
+    first = flat.get("first_name")
+    last = flat.get("last_name")
+    upsert_person_identity_from_peopleforce(
         cur,
         email=str(email).strip(),
-        full_name=str(fn).strip() if fn else None,
+        full_name=fn_raw,
+        first_name=str(first).strip() if first else None,
+        last_name=str(last).strip() if last else None,
         peopleforce_employee_id=employee_id,
         jira_id=_hr_jira_for_email(cur, str(email)),
     )

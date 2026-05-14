@@ -5,6 +5,7 @@
 
   python -m src.google_analytics.sync --init-db
   python -m src.google_analytics.sync --full-history   # с GA_SYNC_START_DATE … today
+  python -m src.google_analytics.sync --full-history --skip-channel   # без daily_channel
   python -m src.google_analytics.sync --days 7         # скользящее окно (cron)
 
 GA не отдаёт сырые хиты через Data API — только агрегаты по измерениям;
@@ -188,10 +189,16 @@ def main() -> None:
         default=int(os.environ.get("GA_SYNC_PAGE_LIMIT", "100000")),
         help="Размер страницы GA API (offset pagination), до 250000",
     )
+    ap.add_argument(
+        "--skip-channel",
+        action="store_true",
+        help="Не запрашивать и не писать daily_channel (быстрее)",
+    )
     args = ap.parse_args()
 
     _ud_raw = _raw_user_dimension_from_config(args)
     user_dimension = _resolve_ga_user_dimension(_ud_raw)
+    skip_channel = bool(args.skip_channel) or _truthy_env("GA_SYNC_SKIP_CHANNEL")
 
     from src.config import get_database_url
     from src.db import connect, init_schema
@@ -252,25 +259,26 @@ def main() -> None:
         overview_rows.append((rd, au, ses, spv, nu))
 
     channel_rows: list[tuple] = []
-    for row in _iter_report_rows(
-        client,
-        property_=prop_res,
-        dimensions=[
-            {"name": "date"},
-            {"name": "sessionDefaultChannelGrouping"},
-        ],
-        metrics=[
-            {"name": "sessions"},
-            {"name": "activeUsers"},
-            {"name": "screenPageViews"},
-        ],
-        date_range=date_range,
-        page_size=page_size,
-    ):
-        rd = _parse_ga_date(row.dimension_values[0].value)
-        ch = row.dimension_values[1].value or ""
-        ses, au, spv = [_safe_int(mv.value) for mv in row.metric_values]
-        channel_rows.append((rd, ch, ses, au, spv))
+    if not skip_channel:
+        for row in _iter_report_rows(
+            client,
+            property_=prop_res,
+            dimensions=[
+                {"name": "date"},
+                {"name": "sessionDefaultChannelGrouping"},
+            ],
+            metrics=[
+                {"name": "sessions"},
+                {"name": "activeUsers"},
+                {"name": "screenPageViews"},
+            ],
+            date_range=date_range,
+            page_size=page_size,
+        ):
+            rd = _parse_ga_date(row.dimension_values[0].value)
+            ch = row.dimension_values[1].value or ""
+            ses, au, spv = [_safe_int(mv.value) for mv in row.metric_values]
+            channel_rows.append((rd, ch, ses, au, spv))
 
     geo_rows: list[tuple] = []
     for row in _iter_report_rows(
@@ -406,22 +414,25 @@ def main() -> None:
                     """,
                     tup,
                 )
+            conn.commit()
 
-            for tup in channel_rows:
-                cur.execute(
-                    """
-                    INSERT INTO google_analytics_dm.daily_channel (
-                        report_date, channel, sessions,
-                        active_users, screen_page_views, synced_at
-                    ) VALUES (%s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (report_date, channel) DO UPDATE SET
-                        sessions = EXCLUDED.sessions,
-                        active_users = EXCLUDED.active_users,
-                        screen_page_views = EXCLUDED.screen_page_views,
-                        synced_at = NOW()
-                    """,
-                    tup,
-                )
+            if not skip_channel:
+                for tup in channel_rows:
+                    cur.execute(
+                        """
+                        INSERT INTO google_analytics_dm.daily_channel (
+                            report_date, channel, sessions,
+                            active_users, screen_page_views, synced_at
+                        ) VALUES (%s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (report_date, channel) DO UPDATE SET
+                            sessions = EXCLUDED.sessions,
+                            active_users = EXCLUDED.active_users,
+                            screen_page_views = EXCLUDED.screen_page_views,
+                            synced_at = NOW()
+                        """,
+                        tup,
+                    )
+                conn.commit()
 
             for tup in geo_rows:
                 cur.execute(
@@ -438,6 +449,7 @@ def main() -> None:
                     """,
                     tup,
                 )
+            conn.commit()
 
             for tup in device_rows:
                 cur.execute(
@@ -454,6 +466,7 @@ def main() -> None:
                     """,
                     tup,
                 )
+            conn.commit()
 
             sm_batch: list[tuple] = []
             for row in _iter_report_rows(
@@ -500,6 +513,7 @@ def main() -> None:
                     """,
                     tup,
                 )
+            conn.commit()
 
             page_batch: list[tuple] = []
             for row in _iter_report_rows(
@@ -530,10 +544,11 @@ def main() -> None:
             flush_pages(cur, page_batch)
             conn.commit()
 
+    ch_info = "skipped" if skip_channel else str(len(channel_rows))
     print(
         "GA sync OK "
         f"range={_range_label(date_range)} | "
-        f"overview={len(overview_rows)} channel={len(channel_rows)} "
+        f"overview={len(overview_rows)} channel={ch_info} "
         f"geo={len(geo_rows)} device={len(device_rows)} "
         f"src_med={sm_total} page_rows={page_total} user={len(user_rows)}"
     )

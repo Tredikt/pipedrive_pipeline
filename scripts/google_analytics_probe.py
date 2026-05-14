@@ -11,11 +11,16 @@
 Запуск из корня репозитория:
   python scripts/google_analytics_probe.py
 
+Список user-scoped custom dimensions (поле для daily_user → customUser:…):
+  python scripts/google_analytics_probe.py --list-user-dimensions
+
+Все кастомные измерения свойства (User / Event — по префиксу api_name):
+  python scripts/google_analytics_probe.py --list-custom-dimensions
+
 Опционально в .env: GA_REFRESH_TOKEN — без браузера (тот же OAuth-клиент).
 При первом входе сохранится google_analytics_token.json в корне (не коммитить).
 """
-from __future__ import annotations
-
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -63,7 +68,94 @@ def _safe_int(s: str) -> int:
         return 0
 
 
+def _list_custom_user_dimensions(client, prop: str) -> None:
+    md = client.get_metadata(name=f"{prop}/metadata")
+    rows = []
+    for d in md.dimensions:
+        api = (d.api_name or "").strip()
+        if not api.startswith("customUser:"):
+            continue
+        rows.append((api, (d.ui_name or "").strip(), (d.category or "").strip()))
+
+    rows.sort(key=lambda x: x[0].lower())
+
+    print("Property:", prop)
+    print("=== User-scoped custom dimensions (измерение для запросов = колонка api_name) ===\n")
+    if not rows:
+        print(
+            "(нет записей с префиксом customUser: — создайте в GA4 Admin → Custom definitions,\n"
+            " scope «User», дождитесь сбора данных и проверьте снова.)"
+        )
+        print(
+            "\nЕсли уже есть Custom dimensions — возможно они с scope «Event», а нужен именно «User»\n"
+            "для daily_user в этом синке. Список всех кастомных измерений:\n"
+            "  python scripts/google_analytics_probe.py --list-custom-dimensions"
+        )
+        return
+
+    print(f"{'api_name (это задаёт GA_SYNC_USER_DIMENSION)':<48} {'ui_name':<28} category")
+    print("-" * 120)
+    for api, ui, cat in rows:
+        ui_disp = ui if len(ui) <= 26 else ui[:23] + "..."
+        print(f"{api:<48} {ui_disp:<28} {cat}")
+
+    suf = rows[0][0].replace("customUser:", "", 1)
+    print(
+        "\nПример для .env: GA_SYNC_USER_CUSTOM_DIMENSION="
+        + repr(suf)
+        + "\n  или GA_SYNC_USER_DIMENSION="
+        + repr(rows[0][0])
+        + ""
+    )
+
+
+def _list_custom_dimensions(client, prop: str) -> None:
+    md = client.get_metadata(name=f"{prop}/metadata")
+    rows = []
+    for d in md.dimensions:
+        if not d.custom_definition:
+            continue
+        api = (d.api_name or "").strip()
+        rows.append((api, (d.ui_name or "").strip(), (d.category or "").strip()))
+
+    rows.sort(key=lambda x: x[0].lower())
+
+    print("Property:", prop)
+    print("=== Все custom dimensions этого свойства (custom_definition) ===\n")
+    if not rows:
+        print(
+            "(пусто — в Admin → Data display → Custom definitions нет измерений\n"
+            " или метаданные ещё не подтянулись.)"
+        )
+        return
+
+    print(f"{'api_name':<52} {'ui_name':<28} category")
+    print("-" * 120)
+    for api, ui, cat in rows:
+        ui_disp = ui if len(ui) <= 26 else ui[:23] + "..."
+        print(f"{api:<52} {ui_disp:<28} {cat}")
+
+    print(
+        "\nПрефиксы: customUser: — user scope (подходит для daily_user в нашем синке);\n"
+        "           customEvent: — event scope (для отчёта по пользователю в daily_user не подходит).\n"
+        "User-ID из настроек GA на уровне потока в Data API как dimension не отдаётся."
+    )
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Пробный запрос GA4 Data API")
+    ap.add_argument(
+        "--list-user-dimensions",
+        action="store_true",
+        help="Список измерений customUser:* (метаданные свойства через getMetadata)",
+    )
+    ap.add_argument(
+        "--list-custom-dimensions",
+        action="store_true",
+        help="Список всех custom dimensions свойства (customUser + customEvent + …)",
+    )
+    cli = ap.parse_args()
+
     try:
         from google.analytics.data_v1beta import BetaAnalyticsDataClient
         from google.analytics.data_v1beta.types import RunReportRequest
@@ -84,6 +176,28 @@ def main() -> None:
         if raw_prop.startswith("properties/")
         else f"properties/{raw_prop}"
     )
+
+    if cli.list_user_dimensions:
+        from src.google_analytics.auth import load_ga_oauth_credentials
+
+        try:
+            creds = load_ga_oauth_credentials()
+        except FileNotFoundError as e:
+            raise SystemExit(str(e)) from e
+        client = BetaAnalyticsDataClient(credentials=creds)
+        _list_custom_user_dimensions(client, prop)
+        return
+
+    if cli.list_custom_dimensions:
+        from src.google_analytics.auth import load_ga_oauth_credentials
+
+        try:
+            creds = load_ga_oauth_credentials()
+        except FileNotFoundError as e:
+            raise SystemExit(str(e)) from e
+        client = BetaAnalyticsDataClient(credentials=creds)
+        _list_custom_dimensions(client, prop)
+        return
 
     print("Property:", prop)
     print("Период: последние 7 дней (today по календарю отчёта GA4)")

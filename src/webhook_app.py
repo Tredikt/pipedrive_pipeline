@@ -47,6 +47,9 @@ from src.webhook_client import (
 logger = logging.getLogger(__name__)
 
 _SQL_PERSON_IDENTITY = Path(__file__).resolve().parent.parent / "sql" / "021_master_person_identity.sql"
+_SQL_IDENTITY_PF_RULES = (
+    Path(__file__).resolve().parent.parent / "sql" / "024_master_identity_pf_rules.sql"
+)
 
 app = FastAPI(
     title="CRM webhooks (Pipedrive + PeopleForce)",
@@ -93,6 +96,22 @@ def _configure_logging() -> None:
                         logger.info(
                             "Applied sql/021_master_person_identity.sql (person_identity)"
                         )
+                    if _SQL_IDENTITY_PF_RULES.is_file():
+                        cur.execute(
+                            """
+                            SELECT EXISTS (
+                              SELECT 1 FROM information_schema.tables
+                              WHERE table_schema = 'master'
+                                AND table_name = 'identity_link_pending'
+                            )
+                            """
+                        )
+                        if cur.fetchone()[0] is not True:
+                            init_schema(conn, str(_SQL_IDENTITY_PF_RULES))
+                            logger.info(
+                                "Applied sql/024_master_identity_pf_rules.sql "
+                                "(pending + имена)"
+                            )
         else:
             logger.warning("Missing migration file: %s", _SQL_PERSON_IDENTITY)
     except Exception as e:
