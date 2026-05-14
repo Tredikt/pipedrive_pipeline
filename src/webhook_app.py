@@ -1,6 +1,6 @@
 """
 HTTP-приёмник: Pipedrive POST /webhook, PeopleForce POST /peopleforce/webhook,
-Jira POST /webhook/jira.
+Jira POST /jira/webhook.
 
 Запуск локально:
   pip install -r requirements-webhook.txt
@@ -8,7 +8,7 @@ Jira POST /webhook/jira.
 
 Переменные: как у синка (DATABASE_URL, PIPEDRIVE_API_TOKEN, PIPEDRIVE_COMPANY_DOMAIN),
 опционально WEBHOOK_SECRET — тогда Authorization: Bearer <WEBHOOK_SECRET> на POST /webhook,
-и тот же или отдельный JIRA_WEBHOOK_SECRET для POST /webhook/jira (см. src/jira/webhook_routes.py).
+и тот же или отдельный JIRA_WEBHOOK_SECRET для POST /jira/webhook (см. src/jira/webhook_routes.py).
 Опционально HR_MATCH_ALERT_WEBHOOK_URL — Incoming Webhook Slack или любой POST JSON:
 отправляется объект с полями reason, ids и коротким «text» на русском (инструкция менеджеру).
 
@@ -58,7 +58,7 @@ app = FastAPI(
     title="CRM webhooks (Pipedrive + PeopleForce + Jira)",
     version="1.0.0",
 )
-app.include_router(jira_webhook_routes.router)
+app.include_router(jira_webhook_routes.router, prefix="/jira", tags=["jira"])
 app.include_router(
     peopleforce_webhook_routes.router,
     prefix="/peopleforce",

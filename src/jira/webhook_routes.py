@@ -1,4 +1,5 @@
-from __future__ import annotations
+"""POST /webhook с префиксом приложения → URL /jira/webhook (зеркало PeopleForce /peopleforce/webhook)."""
+
 
 import hashlib
 import json
@@ -19,7 +20,7 @@ from src.webhook_client import parse_ip_allowlist, webhook_client_host
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["jira"])
+router = APIRouter()
 
 
 def _jira_secret() -> str:
@@ -83,7 +84,7 @@ def _pick_user_fields(body: dict[str, Any]) -> tuple[str | None, str | None, str
     return aid, email, disp
 
 
-@router.post("/webhook/jira", summary="Jira webhook")
+@router.post("/webhook", summary="Jira webhook")
 async def jira_webhook(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
