@@ -2,7 +2,7 @@
 Сквозная таблица master.person_identity (sql/021 + 024).
 
 Правило JIRA: новая строка создаётся только из PeopleForce (upsert_person_identity_from_peopleforce).
-Pipedrive (и будущий Jira webhook) только merge_person_identity_from_crm по email;
+Pipedrive (и Jira webhook) только merge_person_identity_from_crm по email;
 при отсутствии совпадения — master.identity_link_pending + опционально HTTP-алерт.
 """
 

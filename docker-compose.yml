@@ -17,6 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.cron
+    # Те же переменные, что у webhook (.env рядом с compose). Отдельно: см. docker/entrypoint-cron.sh — cron не наследует env контейнера.
     env_file:
       - .env
     restart: unless-stopped

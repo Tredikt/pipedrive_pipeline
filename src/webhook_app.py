@@ -1,17 +1,19 @@
 """
-HTTP-приёмник: Pipedrive POST /webhook, PeopleForce POST /peopleforce/webhook.
+HTTP-приёмник: Pipedrive POST /webhook, PeopleForce POST /peopleforce/webhook,
+Jira POST /webhook/jira.
 
 Запуск локально:
   pip install -r requirements-webhook.txt
   uvicorn src.webhook_app:app --host 0.0.0.0 --port 8000
 
 Переменные: как у синка (DATABASE_URL, PIPEDRIVE_API_TOKEN, PIPEDRIVE_COMPANY_DOMAIN),
-опционально WEBHOOK_SECRET — тогда заголовок Authorization: Bearer <WEBHOOK_SECRET>.
+опционально WEBHOOK_SECRET — тогда Authorization: Bearer <WEBHOOK_SECRET> на POST /webhook,
+и тот же или отдельный JIRA_WEBHOOK_SECRET для POST /webhook/jira (см. src/jira/webhook_routes.py).
 Опционально HR_MATCH_ALERT_WEBHOOK_URL — Incoming Webhook Slack или любой POST JSON:
 отправляется объект с полями reason, ids и коротким «text» на русском (инструкция менеджеру).
 
 Правило данных: новые строки master добавляет только PeopleForce (вебхук employee_* может INSERT).
-Pipedrive только дописывает идентификаторы к уже существующей строке; при отсутствии совпадения —
+Pipedrive и Jira только дописывают идентификаторы к уже существующей строке; при отсутствии совпадения —
 уведомление, без создания строки HR из CRM.
 Проверка аккаунта Pipedrive: meta.host в теле webhook v2 должен совпадать с доменом из
 PIPEDRIVE_COMPANY_DOMAIN или WEBHOOK_EXPECTED_HOST (иначе 403). Опционально WEBHOOK_ALLOWED_IPS.
@@ -36,6 +38,7 @@ from src.pipedrive_client import PipedriveClient
 from src.sync import sync_one_entity_webhook
 from src.webhook_delete import delete_entity_from_db
 from src.webhook_parse import is_delete_action, is_upsert_action, parse_webhook_event
+from src.jira import webhook_routes as jira_webhook_routes
 from src.peopleforce import webhook_routes as peopleforce_webhook_routes
 from src.webhook_client import (
     expected_pipedrive_meta_hostname,
@@ -52,9 +55,10 @@ _SQL_IDENTITY_PF_RULES = (
 )
 
 app = FastAPI(
-    title="CRM webhooks (Pipedrive + PeopleForce)",
+    title="CRM webhooks (Pipedrive + PeopleForce + Jira)",
     version="1.0.0",
 )
+app.include_router(jira_webhook_routes.router)
 app.include_router(
     peopleforce_webhook_routes.router,
     prefix="/peopleforce",
@@ -72,6 +76,7 @@ def _configure_logging() -> None:
         "src.sync",
         "src.pipedrive_client",
         "src.peopleforce.webhook_routes",
+        "src.jira.webhook_routes",
     ):
         lg = logging.getLogger(name)
         lg.setLevel(level)

@@ -2,7 +2,7 @@
 Связка master.hr_employee и master.person_identity после webhook-upsert.
 
 PeopleForce — источник правды: создаёт/обновляет строки person_identity (имя, PF id).
-Pipedrive только merge по email (pipedrive_* и подсказка jira из HR); без совпадения —
+Pipedrive и Jira только merge по email (jira_id из Jira); без совпадения —
 master.identity_link_pending + опционально HR_MATCH_ALERT_WEBHOOK_URL.
 """
 
