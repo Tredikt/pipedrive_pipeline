@@ -15,6 +15,7 @@ from src.identity_registry import (
     merge_person_identity_from_crm,
     notify_identity_match_miss,
     record_identity_link_pending,
+    build_jira_user_profile_url,
 )
 from src.webhook_client import parse_ip_allowlist, webhook_client_host
 
@@ -160,6 +161,8 @@ async def jira_webhook(
                         entity_id=eid,
                         email=eff_email,
                         detail=detail,
+                        contact_name=disp,
+                        crm_entity_url=build_jira_user_profile_url(aid),
                     )
                 conn.commit()
     except Exception:

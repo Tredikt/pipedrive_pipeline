@@ -3,7 +3,7 @@
 
 PeopleForce — источник правды: создаёт/обновляет строки person_identity (имя, PF id).
 Pipedrive и Jira только merge по email (jira_id из Jira); без совпадения —
-master.identity_link_pending + опционально HR_MATCH_ALERT_WEBHOOK_URL.
+master.identity_link_pending + опционально Slack (HR_MATCH_SLACK_BOT_TOKEN+CHANNEL или HR_MATCH_ALERT_WEBHOOK_URL).
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import psycopg
 
 from src.identity_registry import (
     merge_person_identity_from_crm,
+    build_pipedrive_entity_url,
     notify_identity_match_miss,
     record_identity_link_pending,
     upsert_person_identity_from_peopleforce,
@@ -43,6 +44,7 @@ def _pipedrive_miss(
     entity_id: int,
     email: str | None,
     detail: str,
+    contact_name: str | None = None,
 ) -> None:
     record_identity_link_pending(
         cur,
@@ -53,12 +55,15 @@ def _pipedrive_miss(
         detail=detail,
         payload=None,
     )
+    pdu = build_pipedrive_entity_url(entity_kind, entity_id)
     notify_identity_match_miss(
         source_system="pipedrive",
         entity_kind=entity_kind,
         entity_id=entity_id,
         email=email,
         detail=detail,
+        contact_name=contact_name,
+        crm_entity_url=pdu,
     )
 
 
@@ -98,12 +103,14 @@ def link_master_after_pipedrive_upsert(
             full_name_hint=str(nm).strip() if nm else None,
         )
         if not merged:
+            nm_s = str(nm).strip() if nm else ""
             _pipedrive_miss(
                 cur,
                 entity_kind="user",
                 entity_id=entity_id,
                 email=em_s,
                 detail="Нет person_identity по этому email (ожидается запись из PeopleForce).",
+                contact_name=nm_s or None,
             )
         return
 
@@ -145,12 +152,14 @@ def link_master_after_pipedrive_upsert(
             full_name_hint=str(nm).strip() if nm else None,
         )
         if not merged:
+            nm_s = str(nm).strip() if nm else ""
             _pipedrive_miss(
                 cur,
                 entity_kind="person",
                 entity_id=entity_id,
                 email=em_s,
                 detail="Нет person_identity по этому email (ожидается запись из PeopleForce).",
+                contact_name=nm_s or None,
             )
 
 

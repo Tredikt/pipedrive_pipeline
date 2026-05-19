@@ -3,7 +3,8 @@
 
 Правило JIRA: новая строка создаётся только из PeopleForce (upsert_person_identity_from_peopleforce).
 Pipedrive (и Jira webhook) только merge_person_identity_from_crm по email;
-при отсутствии совпадения — master.identity_link_pending + опционально HTTP-алерт.
+при отсутствии совпадения — master.identity_link_pending + опционально уведомление в Slack / REST
+(HR_MATCH_SLACK_BOT_TOKEN+CHANNEL или запасной HR_MATCH_ALERT_WEBHOOK_URL).
 """
 
 from __future__ import annotations
@@ -177,6 +178,140 @@ def record_identity_link_pending(
     )
 
 
+def pipedrive_ui_base_from_env() -> str | None:
+    """Базовый HTTPS-URL веб‑интерфейса вида ``https://{sub}.pipedrive.com``. Без COMPANY_DOMAIN недоступен."""
+    try:
+        from src.config import resolve_pipedrive_api_base_url
+
+        api = resolve_pipedrive_api_base_url().rstrip("/")
+        if ".pipedrive.com/api" not in api:
+            return None
+        return api[: -len("/api")]
+    except Exception:
+        return None
+
+
+def build_pipedrive_entity_url(entity_kind: str, entity_id: int) -> str | None:
+    """Ссылка на карточку person/user в интерфейсе Pipedrive (если задан PIPEDRIVE_COMPANY_DOMAIN)."""
+    base = pipedrive_ui_base_from_env()
+    if not base:
+        return None
+    k = entity_kind.strip().lower()
+    if k == "person":
+        return f"{base}/person/{entity_id}"
+    if k == "user":
+        return f"{base}/settings/users/edit/{entity_id}"
+    return None
+
+
+def build_jira_user_profile_url(account_id: str) -> str | None:
+    """Ссылка на человека в Jira Cloud: нужен ``JIRA_SITE_URL`` (напр. ``https://omnic.atlassian.net``)."""
+    base = os.environ.get("JIRA_SITE_URL", "").strip().rstrip("/")
+    if not base:
+        return None
+    aid = str(account_id).strip()
+    if not aid:
+        return None
+    return f"{base}/jira/people/{aid}"
+
+
+def _crm_display_title(source_system: str) -> str:
+    s = (source_system or "").strip().lower()
+    if s == "pipedrive":
+        return "Pipedrive"
+    if s == "jira":
+        return "Jira"
+    return source_system or "CRM"
+
+
+def _is_slack_incoming_webhook_url(url: str) -> bool:
+    return "hooks.slack.com" in url.casefold().strip()
+
+
+def _post_slack_incoming(webhook_url: str, text: str) -> None:
+    """Slack Incoming Webhooks принимают простой JSON `{"text": "..."}`; лишние поля могут дать ошибку."""
+    import httpx
+
+    r = httpx.post(webhook_url, json={"text": text}, timeout=15.0)
+    r.raise_for_status()
+
+
+def _post_slack_bot_message(token: str, channel: str, text: str) -> None:
+    import httpx
+
+    r = httpx.post(
+        "https://slack.com/api/chat.postMessage",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+        json={"channel": channel.strip(), "text": text},
+        timeout=15.0,
+    )
+    r.raise_for_status()
+    payload = r.json()
+    if not payload.get("ok"):
+        err = payload.get("error")
+        hint = ""
+        if err == "channel_not_found":
+            hint = (
+                " — пригласите бота в канал (/invite @ИмяПриложения) или проверьте "
+                "HR_MATCH_SLACK_CHANNEL (ID C… того же workspace, без лишних пробелов)."
+            )
+        elif err == "not_in_channel":
+            hint = " — добавьте приложение в канал (integrations или /invite @бот)."
+        raise RuntimeError(
+            f"Slack chat.postMessage: {err!r}{hint} (response={payload!r})"
+        )
+
+
+def format_identity_match_miss_alert(
+    *,
+    source_system: str,
+    entity_kind: str,
+    entity_id: int | str,
+    email: str | None,
+    detail: str | None = None,
+    contact_name: str | None = None,
+    crm_entity_url: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Текст для Slack и тело для произвольного POST-вебхука менеджера."""
+    crm = _crm_display_title(source_system)
+    nm = str(contact_name).strip() if contact_name else ""
+    name_display = nm if nm else "имя не указано"
+
+    email_display = (_clean_email(email) or "").strip() if email else ""
+    email_display = email_display or "email не указан"
+
+    line1 = (
+        f"Внимание, в {crm} был создан контакт {name_display} "
+        f"с {email_display}, однако такой email не найден. "
+        f"Для корректной работы поменяйте email сотрудника на тот, что указан в PeopleForce."
+    )
+    parts: list[str] = [line1]
+    ru: str | None = None
+    if crm_entity_url:
+        ru = str(crm_entity_url).strip()
+        if ru:
+            parts.append(f"Ссылка на страницу сотрудника — {ru}")
+
+    text = "\n\n".join(parts)
+
+    structured = {
+        "text": text,
+        "reason": "person_identity_miss",
+        "source_system": source_system,
+        "entity_kind": entity_kind,
+        "entity_id": entity_id,
+        "email": email,
+        "detail": detail,
+        "contact_name": contact_name,
+        "crm_entity_url": ru,
+        "crm_display": crm,
+    }
+    return text, structured
+
+
 def notify_identity_match_miss(
     *,
     source_system: str,
@@ -184,32 +319,79 @@ def notify_identity_match_miss(
     entity_id: int,
     email: str | None,
     detail: str | None = None,
-) -> None:
-    """Опционально POST на HR_MATCH_ALERT_WEBHOOK_URL (Slack Incoming Webhook и т.п.)."""
-    url = os.environ.get("HR_MATCH_ALERT_WEBHOOK_URL", "").strip()
-    if not url:
-        return
-    text = (
-        f"[identity] Нет строки person_identity для email из {source_system}: "
-        f"{entity_kind} id={entity_id}, email={email or '(пусто)'}. "
-        f"Проверьте email в CRM или добавьте сотрудника в PeopleForce. "
-        f"{detail or ''}".strip()
+    contact_name: str | None = None,
+    crm_entity_url: str | None = None,
+) -> bool | None:
+    """
+    Уведомление менеджеру при несовпадении email из CRM/Jira с базой HR.
+
+    Порядок отправки (первое сработавшее):
+
+    - если заданы ``HR_MATCH_SLACK_BOT_TOKEN`` и ``HR_MATCH_SLACK_CHANNEL`` — Slack ``chat.postMessage``
+      (токен бота ``xoxb-…``, см. приложение Slack с scope ``chat:write``);
+    - иначе, если задан ``HR_MATCH_ALERT_WEBHOOK_URL`` — Incoming Webhook (``hooks.slack.com`` только ``text``)
+      или произвольный свой JSON-приёмник.
+
+    Если ничего из этого не задано — не отправляем (воркфлоу остаётся в ``identity_link_pending``).
+
+    Returns:
+        ``None`` — не отправляли (нет конфигурации);
+        ``True`` — успешно;
+        ``False`` — ошибка сети/ответа (уже записано в лог).
+    """
+    alert_hook_url = os.environ.get("HR_MATCH_ALERT_WEBHOOK_URL", "").strip()
+    slack_bot = os.environ.get("HR_MATCH_SLACK_BOT_TOKEN", "").strip()
+    slack_chan = os.environ.get("HR_MATCH_SLACK_CHANNEL", "").strip()
+
+    text, structured = format_identity_match_miss_alert(
+        source_system=source_system,
+        entity_kind=entity_kind,
+        entity_id=entity_id,
+        email=email,
+        detail=detail,
+        contact_name=contact_name,
+        crm_entity_url=crm_entity_url,
     )
-    body = {
-        "text": text,
-        "reason": "person_identity_miss",
-        "source_system": source_system,
-        "entity_kind": entity_kind,
-        "entity_id": entity_id,
-        "email": email,
-    }
+
+    if not alert_hook_url and not (slack_bot and slack_chan):
+        return None
+
     try:
         import httpx
 
-        r = httpx.post(url, json=body, timeout=15.0)
-        r.raise_for_status()
+        if slack_bot and slack_chan:
+            _post_slack_bot_message(slack_bot, slack_chan, text)
+            logger.info(
+                "HR identity alert sent (Slack chat.postMessage): source=%s channel=%s",
+                source_system,
+                slack_chan,
+            )
+            return True
+
+        if alert_hook_url:
+            if _is_slack_incoming_webhook_url(alert_hook_url):
+                _post_slack_incoming(alert_hook_url, text)
+                logger.info(
+                    "HR identity alert sent (Slack Incoming): source=%s kind=%s",
+                    source_system,
+                    entity_kind,
+                )
+            else:
+                r = httpx.post(alert_hook_url, json=structured, timeout=15.0)
+                r.raise_for_status()
+                logger.info(
+                    "HR identity alert sent (custom webhook URL): source=%s",
+                    source_system,
+                )
+            return True
+
     except Exception:
-        logger.exception("HR_MATCH_ALERT_WEBHOOK_URL notify failed")
+        logger.exception(
+            "HR_MATCH alert notify failed (slack_pair=%s has_url=%s)",
+            bool(slack_bot and slack_chan),
+            bool(alert_hook_url),
+        )
+        return False
 
 
 # Совместимость со скриптами: прежнее имя = только PF / административный upsert

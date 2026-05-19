@@ -9,8 +9,9 @@ Jira POST /jira/webhook.
 Переменные: как у синка (DATABASE_URL, PIPEDRIVE_API_TOKEN, PIPEDRIVE_COMPANY_DOMAIN),
 опционально WEBHOOK_SECRET — тогда Authorization: Bearer <WEBHOOK_SECRET> на POST /webhook,
 и тот же или отдельный JIRA_WEBHOOK_SECRET для POST /jira/webhook (см. src/jira/webhook_routes.py).
-Опционально HR_MATCH_ALERT_WEBHOOK_URL — Incoming Webhook Slack или любой POST JSON:
-отправляется объект с полями reason, ids и коротким «text» на русском (инструкция менеджеру).
+Опционально Slack при несовпадении email с master.person_identity: пара HR_MATCH_SLACK_BOT_TOKEN (xoxb-…)
++ HR_MATCH_SLACK_CHANNEL (chat.postMessage). Запасной вариант — HR_MATCH_ALERT_WEBHOOK_URL (Incoming или свой REST),
+см. notify_identity_match_miss.
 
 Правило данных: новые строки master добавляет только PeopleForce (вебхук employee_* может INSERT).
 Pipedrive и Jira только дописывают идентификаторы к уже существующей строке; при отсутствии совпадения —
